@@ -1,0 +1,46 @@
+{
+  "name": "job-applier",
+  "version": "1.0.0",
+  "description": "AI-powered automated job application system using Claude, Exa, and Playwright",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "clean": "npm run clean --workspaces --if-present && rimraf node_modules",
+    "typecheck": "tsc --noEmit",
+    "cli": "node packages/cli/dist/index.js",
+    "start": "npm run cli"
+  },
+  "keywords": [
+    "job-application",
+    "automation",
+    "ai",
+    "claude",
+    "playwright",
+    "job-search"
+  ],
+  "author": "Joel",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.53.5",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vitest/coverage-v8": "^4.0.15",
+    "eslint": "^8.55.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.2",
+    "vitest": "^4.0.15"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

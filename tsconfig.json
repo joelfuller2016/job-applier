@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@job-applier/core": ["packages/core/src"],
+      "@job-applier/database": ["packages/database/src"],
+      "@job-applier/resume-parser": ["packages/resume-parser/src"],
+      "@job-applier/job-discovery": ["packages/job-discovery/src"],
+      "@job-applier/browser-automation": ["packages/browser-automation/src"],
+      "@job-applier/platforms": ["packages/platforms/src"],
+      "@job-applier/config": ["packages/config/src"]
+    }
+  },
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/database" },
+    { "path": "packages/config" },
+    { "path": "packages/resume-parser" },
+    { "path": "packages/job-discovery" },
+    { "path": "packages/browser-automation" },
+    { "path": "packages/platforms" },
+    { "path": "apps/cli" }
+  ],
+  "files": [],
+  "include": []
+}

@@ -1,0 +1,229 @@
+import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
+import { ConfigError } from '@job-applier/core';
+import {
+  EnvSchema,
+  AppConfig,
+  AppConfigSchema,
+  type EnvConfig,
+} from './schema.js';
+
+/**
+ * Load environment variables from .env file
+ */
+export function loadEnvFile(envPath?: string): void {
+  const paths = envPath
+    ? [envPath]
+    : [
+        path.resolve(process.cwd(), '.env.local'),
+        path.resolve(process.cwd(), '.env'),
+      ];
+
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      dotenv.config({ path: p });
+      return;
+    }
+  }
+}
+
+/**
+ * Parse and validate environment variables
+ */
+export function parseEnv(): EnvConfig {
+  const result = EnvSchema.safeParse(process.env);
+
+  if (!result.success) {
+    const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+    throw new ConfigError(
+      `Invalid environment configuration:\n${errors.join('\n')}`
+    );
+  }
+
+  return result.data;
+}
+
+/**
+ * Convert environment config to application config
+ */
+export function envToAppConfig(env: EnvConfig): AppConfig {
+  const config: AppConfig = {
+    claude: {
+      apiKey: env.ANTHROPIC_API_KEY,
+      model: env.CLAUDE_MODEL,
+      maxTokens: env.CLAUDE_MAX_TOKENS,
+      temperature: env.CLAUDE_TEMPERATURE,
+    },
+    exa: {
+      apiKey: env.EXA_API_KEY,
+      maxResults: env.EXA_MAX_RESULTS,
+      searchTimeout: 30000,
+    },
+    database: {
+      path: env.DATABASE_PATH,
+      walMode: true,
+      busyTimeout: 5000,
+    },
+    browser: {
+      headless: env.BROWSER_HEADLESS,
+      slowMo: env.BROWSER_SLOW_MO,
+      timeout: env.BROWSER_TIMEOUT,
+      viewport: { width: 1920, height: 1080 },
+    },
+    rateLimit: {
+      maxApplicationsPerDay: env.MAX_APPLICATIONS_PER_DAY,
+      maxApplicationsPerHour: env.MAX_APPLICATIONS_PER_HOUR,
+      minDelayBetweenActions: env.MIN_DELAY_BETWEEN_ACTIONS,
+      maxDelayBetweenActions: env.MAX_DELAY_BETWEEN_ACTIONS,
+      pauseAfterApplications: 5,
+      pauseDuration: 60000,
+    },
+    platforms: {
+      linkedin: {
+        enabled: true,
+        email: env.LINKEDIN_EMAIL,
+        password: env.LINKEDIN_PASSWORD,
+        useEasyApply: true,
+      },
+      indeed: {
+        enabled: true,
+        email: env.INDEED_EMAIL,
+        password: env.INDEED_PASSWORD,
+      },
+      glassdoor: {
+        enabled: false,
+      },
+    },
+    logging: {
+      level: env.LOG_LEVEL,
+      file: env.LOG_FILE,
+      console: true,
+      timestamps: true,
+    },
+    preferences: {
+      minMatchScore: env.MIN_MATCH_SCORE,
+      autoApply: env.AUTO_APPLY,
+      requireReview: env.REQUIRE_REVIEW,
+      skipAppliedJobs: true,
+      coverLetterStyle: 'professional',
+      customizePerJob: true,
+    },
+    dataDir: env.DATA_DIR,
+    environment: env.NODE_ENV,
+  };
+
+  // Validate the complete config
+  const result = AppConfigSchema.safeParse(config);
+  if (!result.success) {
+    const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+    throw new ConfigError(
+      `Invalid application configuration:\n${errors.join('\n')}`
+    );
+  }
+
+  return result.data;
+}
+
+/**
+ * Load configuration from a JSON file
+ */
+export function loadConfigFile(configPath: string): Partial<AppConfig> {
+  if (!fs.existsSync(configPath)) {
+    throw new ConfigError(`Configuration file not found: ${configPath}`);
+  }
+
+  try {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    return JSON.parse(content);
+  } catch (error) {
+    throw new ConfigError(
+      `Failed to parse configuration file: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Save configuration to a JSON file
+ */
+export function saveConfigFile(configPath: string, config: Partial<AppConfig>): void {
+  try {
+    const dir = path.dirname(configPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  } catch (error) {
+    throw new ConfigError(
+      `Failed to save configuration file: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Merge configuration objects deeply
+ */
+export function mergeConfig<T extends Record<string, unknown>>(
+  base: T,
+  overrides: Partial<T>
+): T {
+  const result = { ...base };
+
+  for (const key of Object.keys(overrides) as Array<keyof T>) {
+    const value = overrides[key];
+    if (value === undefined) continue;
+
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      typeof result[key] === 'object' &&
+      result[key] !== null
+    ) {
+      result[key] = mergeConfig(
+        result[key] as Record<string, unknown>,
+        value as Record<string, unknown>
+      ) as T[keyof T];
+    } else {
+      result[key] = value as T[keyof T];
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Load complete configuration from environment and optional config file
+ */
+export function loadConfig(options?: {
+  envPath?: string;
+  configPath?: string;
+}): AppConfig {
+  // Load .env file
+  loadEnvFile(options?.envPath);
+
+  // Parse environment variables
+  const env = parseEnv();
+
+  // Convert to app config
+  let config = envToAppConfig(env);
+
+  // Merge with config file if provided
+  if (options?.configPath && fs.existsSync(options.configPath)) {
+    const fileConfig = loadConfigFile(options.configPath);
+    config = mergeConfig(config, fileConfig);
+  }
+
+  // Ensure data directory exists
+  if (!fs.existsSync(config.dataDir)) {
+    fs.mkdirSync(config.dataDir, { recursive: true });
+  }
+
+  // Ensure database directory exists
+  const dbDir = path.dirname(config.database.path);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+
+  return config;
+}
