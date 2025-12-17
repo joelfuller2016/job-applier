@@ -1,0 +1,269 @@
+/**
+ * GeneralSettings - General application settings
+ *
+ * @description Default job search preferences and automation settings
+ */
+
+'use client';
+
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+
+const generalSettingsSchema = z.object({
+  defaultKeywords: z.string().optional(),
+  defaultLocation: z.string().optional(),
+  autoApplyEnabled: z.boolean().default(false),
+  matchThreshold: z.number().min(0).max(100).default(70),
+  browserHeadless: z.boolean().default(true),
+  maxApplicationsPerDay: z.number().min(1).max(100).default(10),
+  applicationDelay: z.number().min(1).max(60).default(5),
+});
+
+type GeneralSettingsValues = z.infer<typeof generalSettingsSchema>;
+
+const defaultValues: GeneralSettingsValues = {
+  defaultKeywords: '',
+  defaultLocation: '',
+  autoApplyEnabled: false,
+  matchThreshold: 70,
+  browserHeadless: true,
+  maxApplicationsPerDay: 10,
+  applicationDelay: 5,
+};
+
+export function GeneralSettings() {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const form = useForm<GeneralSettingsValues>({
+    resolver: zodResolver(generalSettingsSchema),
+    defaultValues,
+  });
+
+  const onSubmit = async (data: GeneralSettingsValues) => {
+    setIsLoading(true);
+    try {
+      // TODO: Implement tRPC mutation to save settings
+      // await trpc.settings.updateGeneral.mutate(data);
+
+      console.log('General settings:', data);
+
+      toast({
+        title: 'Settings saved',
+        description: 'Your general settings have been updated successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save settings. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>General Settings</CardTitle>
+        <CardDescription>
+          Configure default job search preferences and automation behavior
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Default Search Preferences */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Default Search Preferences</h3>
+
+              <FormField
+                control={form.control}
+                name="defaultKeywords"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Keywords</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Software Engineer, Full Stack Developer"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Default job titles or keywords for new job hunts
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="defaultLocation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Location</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., San Francisco, CA or Remote"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Default location for job searches
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Auto-Apply Settings */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Auto-Apply Settings</h3>
+
+              <FormField
+                control={form.control}
+                name="autoApplyEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Enable Auto-Apply</FormLabel>
+                      <FormDescription>
+                        Automatically apply to jobs that match your criteria
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="matchThreshold"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Match Threshold ({field.value}%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Minimum match percentage to auto-apply (0-100)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="maxApplicationsPerDay"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Max Applications Per Day</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Maximum number of applications to submit per day
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Browser Automation Settings */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Browser Automation</h3>
+
+              <FormField
+                control={form.control}
+                name="browserHeadless"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Headless Mode</FormLabel>
+                      <FormDescription>
+                        Run browser automation in the background (recommended)
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="applicationDelay"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Application Delay (seconds)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="60"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Delay between applications to appear more human-like
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}

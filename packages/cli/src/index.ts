@@ -8,6 +8,7 @@ import { createResumeCommand } from './commands/resume.js';
 import { createSearchCommand } from './commands/search.js';
 import { createApplyCommand } from './commands/apply.js';
 import { createStatsCommand } from './commands/stats.js';
+import { createHuntCommand } from './commands/hunt.js';
 
 // Display banner
 console.log(
@@ -31,6 +32,7 @@ program.addCommand(createResumeCommand());
 program.addCommand(createSearchCommand());
 program.addCommand(createApplyCommand());
 program.addCommand(createStatsCommand());
+program.addCommand(createHuntCommand());
 
 // Login command
 program

@@ -21,6 +21,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@job-applier/ai-job-hunter": "*",
     "@job-applier/core": "*",
     "@job-applier/config": "*",
     "@job-applier/database": "*",

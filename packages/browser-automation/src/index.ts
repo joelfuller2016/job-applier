@@ -45,6 +45,7 @@ export {
 export {
   SessionManager,
   sessionManager,
+  getSessionManager,
   createPageWithSession,
   savePageSession,
   type SessionState,

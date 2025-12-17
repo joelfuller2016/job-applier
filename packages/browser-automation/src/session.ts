@@ -195,6 +195,23 @@ export class SessionManager {
   }
 }
 
+// Lazy-initialized singleton
+let _sessionManager: SessionManager | null = null;
+
+export function getSessionManager(): SessionManager {
+  if (!_sessionManager) {
+    _sessionManager = new SessionManager();
+  }
+  return _sessionManager;
+}
+
+// For backwards compatibility - lazy getter
+export const sessionManager = {
+  get instance() {
+    return getSessionManager();
+  }
+};
+
 /**
  * Create a new page with session restoration
  */
@@ -202,10 +219,10 @@ export async function createPageWithSession(
   platform: string
 ): Promise<{ page: Page; hasSession: boolean }> {
   const manager = getBrowserManager();
-  const sessionManager = new SessionManager();
+  const sessManager = getSessionManager();
 
   const context = await manager.getContext();
-  const hasSession = await sessionManager.restoreSession(platform, context);
+  const hasSession = await sessManager.restoreSession(platform, context);
   const page = await manager.newPage();
 
   return { page, hasSession };
@@ -219,10 +236,7 @@ export async function savePageSession(
   page: Page,
   loggedIn: boolean
 ): Promise<void> {
-  const sessionManager = new SessionManager();
+  const manager = getSessionManager();
   const context = page.context();
-  await sessionManager.saveSession(platform, context, loggedIn);
+  await manager.saveSession(platform, context, loggedIn);
 }
-
-// Export singleton
-export const sessionManager = new SessionManager();
