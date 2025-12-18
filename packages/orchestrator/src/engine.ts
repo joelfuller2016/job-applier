@@ -21,6 +21,7 @@ import { CoverLetterGenerator, CoverLetterOptions } from './cover-letter.js';
 export interface WorkflowOptions {
   platforms?: SupportedPlatform[];
   maxJobsPerSession?: number;
+  /** Minimum match score threshold (0-100 scale, default 60) */
   minMatchScore?: number;
   autoApply?: boolean;
   generateCoverLetters?: boolean;
@@ -242,10 +243,12 @@ export class JobApplierEngine {
 
   /**
    * Match jobs with profile
+   * @param jobs - List of jobs to match
+   * @param minScore - Minimum score threshold (0-100 scale, default 60)
    */
   async matchJobs(
     jobs: JobListing[],
-    minScore: number = 0.6
+    minScore: number = 60
   ): Promise<JobMatch[]> {
     if (!this.currentProfile) {
       throw new Error('No profile loaded');
@@ -352,7 +355,7 @@ export class JobApplierEngine {
     const {
       platforms = ['linkedin', 'indeed'],
       maxJobsPerSession = 10,
-      minMatchScore = 0.6,
+      minMatchScore = 60,
       autoApply = false,
       generateCoverLetters = true,
       coverLetterOptions,
