@@ -17,7 +17,7 @@ import { AutomationStatus } from '@/components/dashboard/automation-status';
 export default function DashboardPage() {
   // Fetch dashboard data
   const { data: overview, isLoading } = trpc.dashboard.getOverview.useQuery({});
-  const { data: profile } = trpc.profile.getProfile.useQuery();
+  const { data: profile } = trpc.profile.getCurrentProfile.useQuery();
 
   if (isLoading) {
     return (

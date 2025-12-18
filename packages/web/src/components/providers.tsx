@@ -5,6 +5,7 @@ import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { type ThemeProviderProps } from 'next-themes/dist/types';
 import { Toaster } from '@/components/ui/toaster';
 import { TRPCProvider } from '@/lib/trpc/react';
+import { AuthProvider } from '@/components/auth/session-provider';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -12,17 +13,19 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <TRPCProvider>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
-        {children}
-        <Toaster />
-      </ThemeProvider>
-    </TRPCProvider>
+    <AuthProvider>
+      <TRPCProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
+      </TRPCProvider>
+    </AuthProvider>
   );
 }
 

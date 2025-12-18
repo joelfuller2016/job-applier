@@ -3,11 +3,13 @@
  * Provides context for tRPC procedures (repositories, config, etc.)
  */
 
-import { profileRepository } from '@job-applier/database';
+import { getServerSession } from 'next-auth';
+import { profileRepository, userRepository } from '@job-applier/database';
 import { jobRepository } from '@job-applier/database';
 import { applicationRepository } from '@job-applier/database';
 import { getConfigManager } from '@job-applier/config';
 import { JobHunterOrchestrator } from '@job-applier/ai-job-hunter';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Create context for tRPC
@@ -18,9 +20,17 @@ export async function createContext() {
   const config = configManager.getConfig();
   const orchestrator = new JobHunterOrchestrator();
 
+  // Get the session from NextAuth
+  const session = await getServerSession(authOptions);
+
   return {
+    // Auth
+    session,
+    userId: session?.user?.id ?? 'default',
+
     // Repositories
     profileRepository,
+    userRepository,
     jobRepository,
     applicationRepository,
 
@@ -28,9 +38,6 @@ export async function createContext() {
     configManager,
     config,
     orchestrator,
-
-    // Helpers
-    userId: 'default', // In the future, this would come from auth
   };
 }
 

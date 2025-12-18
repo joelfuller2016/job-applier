@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Bell, Search, Moon, Sun, User, LogOut, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { Bell, Search, Moon, Sun, User, LogOut, Settings, UserPlus, ChevronDown } from 'lucide-react';
 import { useTheme } from 'next-themes';
-
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,8 +20,8 @@ import {
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
-import { getInitials } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn, getInitials } from '@/lib/utils';
 
 interface HeaderProps {
   className?: string;
@@ -28,15 +29,9 @@ interface HeaderProps {
 
 export function Header({ className }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [hasNotifications, setHasNotifications] = React.useState(true);
-
-  // Mock user data - replace with actual user data from your auth system
-  const user = {
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    avatar: '',
-  };
 
   return (
     <header
@@ -112,38 +107,55 @@ export function Header({ className }: HeaderProps) {
         </DropdownMenu>
 
         {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {isLoading ? (
+          <Skeleton className="h-10 w-10 rounded-full" />
+        ) : isAuthenticated && user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user.image || ''} alt={user.name || 'User'} />
+                  <AvatarFallback>{getInitials(user.name || 'User')}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">{user.name}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>My Profiles</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive cursor-pointer"
+                onClick={logout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button asChild variant="default" size="sm">
+            <Link href="/auth/signin">
+              Sign In
+            </Link>
+          </Button>
+        )}
       </div>
     </header>
   );

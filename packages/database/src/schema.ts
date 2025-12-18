@@ -3,9 +3,26 @@
  */
 
 export const SCHEMA = {
+  users: `
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT,
+      image TEXT,
+      provider TEXT NOT NULL DEFAULT 'credentials',
+      provider_account_id TEXT,
+      email_verified INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_login_at TEXT,
+      UNIQUE(provider, provider_account_id)
+    )
+  `,
+
   profiles: `
     CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY,
+      user_id TEXT,
       name TEXT NOT NULL,
       headline TEXT,
       summary TEXT,
@@ -17,9 +34,13 @@ export const SCHEMA = {
       projects TEXT DEFAULT '[]',
       preferences TEXT NOT NULL,
       resume_path TEXT,
+      resume_content TEXT,
+      cover_letter_template TEXT,
+      is_default INTEGER DEFAULT 0,
       parsed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `,
 
@@ -147,6 +168,10 @@ export const SCHEMA = {
 };
 
 export const INDEXES = {
+  users_email: 'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+  users_provider: 'CREATE INDEX IF NOT EXISTS idx_users_provider ON users(provider, provider_account_id)',
+  profiles_user: 'CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id)',
+  profiles_default: 'CREATE INDEX IF NOT EXISTS idx_profiles_default ON profiles(user_id, is_default)',
   jobs_platform: 'CREATE INDEX IF NOT EXISTS idx_jobs_platform ON jobs(platform)',
   jobs_posted_at: 'CREATE INDEX IF NOT EXISTS idx_jobs_posted_at ON jobs(posted_at)',
   jobs_title: 'CREATE INDEX IF NOT EXISTS idx_jobs_title ON jobs(title)',
@@ -161,6 +186,13 @@ export const INDEXES = {
 };
 
 export const TRIGGERS = {
+  users_updated: `
+    CREATE TRIGGER IF NOT EXISTS trigger_users_updated
+    AFTER UPDATE ON users
+    BEGIN
+      UPDATE users SET updated_at = datetime('now') WHERE id = NEW.id;
+    END
+  `,
   profiles_updated: `
     CREATE TRIGGER IF NOT EXISTS trigger_profiles_updated
     AFTER UPDATE ON profiles
