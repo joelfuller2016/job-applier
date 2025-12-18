@@ -28,13 +28,18 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     title: 'Dashboard',
-    href: '/dashboard',
+    href: '/',
     icon: Home,
   },
   {
     title: 'Hunt Jobs',
     href: '/hunt',
     icon: Compass,
+  },
+  {
+    title: 'Jobs',
+    href: '/jobs',
+    icon: Briefcase,
   },
   {
     title: 'Applications',
@@ -82,13 +87,13 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
         {/* Logo */}
         <div className="flex h-16 items-center justify-between px-4 border-b">
           {!isCollapsed && (
-            <Link href="/dashboard" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2">
               <Briefcase className="h-6 w-6 text-primary" />
               <span className="text-lg font-bold gradient-text">JobApplier</span>
             </Link>
           )}
           {isCollapsed && (
-            <Link href="/dashboard" className="flex items-center justify-center w-full">
+            <Link href="/" className="flex items-center justify-center w-full">
               <Briefcase className="h-6 w-6 text-primary" />
             </Link>
           )}
