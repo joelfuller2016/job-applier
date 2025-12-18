@@ -455,7 +455,7 @@ Only respond with the JSON, no other text.`;
    * Get top matches above a threshold
    * @param jobs - List of jobs to match
    * @param profile - User profile to match against
-   * @param minScore - Minimum score threshold (0-100 scale, default 60)
+   * @param minScore - Minimum score as decimal (0-1) or percentage (0-100), default 60
    */
   async getTopMatches(
     jobs: JobListing[],
@@ -463,6 +463,8 @@ Only respond with the JSON, no other text.`;
     minScore: number = 60
   ): Promise<JobMatch[]> {
     const matches = await this.batchCalculateMatches(jobs, profile);
-    return matches.filter(m => m.overallScore >= minScore);
+    // Normalize minScore to 0-100 scale (overallScore is stored as 0-100)
+    const threshold = minScore <= 1 ? minScore * 100 : minScore;
+    return matches.filter(m => m.overallScore >= threshold);
   }
 }

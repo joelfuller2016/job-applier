@@ -4,9 +4,15 @@
  */
 
 import { Page } from 'playwright';
-import { randomDelay } from '@job-applier/browser-automation';
 import { AIPageAnalyzer } from './ai-page-analyzer.js';
 import { DiscoveredJob, PageAnalysis } from './types.js';
+
+/**
+ * Generate a random delay between min and max milliseconds
+ */
+function getRandomDelay(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 export interface NavigationResult {
   success: boolean;
@@ -36,7 +42,7 @@ export class CareerPageNavigator {
     try {
       // Start at job URL
       await page.goto(job.url, { waitUntil: 'networkidle', timeout: 30000 });
-      await new Promise(r => setTimeout(r, randomDelay(1500, 2500)));
+      await new Promise(r => setTimeout(r, getRandomDelay(1500, 2500)));
 
       while (steps < this.maxNavigationSteps) {
         steps++;
@@ -70,7 +76,7 @@ export class CareerPageNavigator {
                 analysis,
               };
             }
-            await new Promise(r => setTimeout(r, randomDelay(2000, 3000)));
+            await new Promise(r => setTimeout(r, getRandomDelay(2000, 3000)));
             break;
 
           case 'job_listing':
@@ -84,7 +90,7 @@ export class CareerPageNavigator {
                 analysis,
               };
             }
-            await new Promise(r => setTimeout(r, randomDelay(2000, 3000)));
+            await new Promise(r => setTimeout(r, getRandomDelay(2000, 3000)));
             break;
 
           case 'login':
@@ -106,7 +112,7 @@ export class CareerPageNavigator {
                 analysis,
               };
             }
-            await new Promise(r => setTimeout(r, randomDelay(2000, 3000)));
+            await new Promise(r => setTimeout(r, getRandomDelay(2000, 3000)));
             break;
         }
       }
@@ -152,7 +158,7 @@ export class CareerPageNavigator {
         const button = await page.$(selector);
         if (button && await button.isVisible()) {
           await button.scrollIntoViewIfNeeded();
-          await new Promise(r => setTimeout(r, randomDelay(300, 600)));
+          await new Promise(r => setTimeout(r, getRandomDelay(300, 600)));
           await button.click();
           return { success: true };
         }
@@ -180,7 +186,7 @@ export class CareerPageNavigator {
             const element = await page.$(job.selector);
             if (element && await element.isVisible()) {
               await element.scrollIntoViewIfNeeded();
-              await new Promise(r => setTimeout(r, randomDelay(300, 600)));
+              await new Promise(r => setTimeout(r, getRandomDelay(300, 600)));
               await element.click();
               return { success: true };
             }
@@ -200,7 +206,7 @@ export class CareerPageNavigator {
       const jobLink = await page.$(`a:has-text("${jobTitle.slice(0, 30)}")`);
       if (jobLink && await jobLink.isVisible()) {
         await jobLink.scrollIntoViewIfNeeded();
-        await new Promise(r => setTimeout(r, randomDelay(300, 600)));
+        await new Promise(r => setTimeout(r, getRandomDelay(300, 600)));
         await jobLink.click();
         return { success: true };
       }
@@ -231,7 +237,7 @@ export class CareerPageNavigator {
         const link = await page.$(selector);
         if (link && await link.isVisible()) {
           await link.scrollIntoViewIfNeeded();
-          await new Promise(r => setTimeout(r, randomDelay(300, 600)));
+          await new Promise(r => setTimeout(r, getRandomDelay(300, 600)));
           await link.click();
           return true;
         }
@@ -281,10 +287,10 @@ export class CareerPageNavigator {
           const nextBtn = await page.$(analysis.nextButton);
           if (nextBtn && await nextBtn.isVisible()) {
             await nextBtn.scrollIntoViewIfNeeded();
-            await new Promise(r => setTimeout(r, randomDelay(500, 1000)));
+            await new Promise(r => setTimeout(r, getRandomDelay(500, 1000)));
             await nextBtn.click();
             await page.waitForLoadState('networkidle', { timeout: 10000 });
-            await new Promise(r => setTimeout(r, randomDelay(1000, 2000)));
+            await new Promise(r => setTimeout(r, getRandomDelay(1000, 2000)));
             continue;
           }
         } catch {
@@ -297,10 +303,10 @@ export class CareerPageNavigator {
           const submitBtn = await page.$(analysis.submitButton);
           if (submitBtn && await submitBtn.isVisible()) {
             await submitBtn.scrollIntoViewIfNeeded();
-            await new Promise(r => setTimeout(r, randomDelay(500, 1000)));
+            await new Promise(r => setTimeout(r, getRandomDelay(500, 1000)));
             await submitBtn.click();
             await page.waitForLoadState('networkidle', { timeout: 10000 });
-            await new Promise(r => setTimeout(r, randomDelay(1500, 2500)));
+            await new Promise(r => setTimeout(r, getRandomDelay(1500, 2500)));
 
             // Check if application was submitted
             const postSubmitText = await page.evaluate(() => document.body.textContent || '');

@@ -5,6 +5,7 @@
 
 import { Exa } from 'exa-js';
 import { Page } from 'playwright';
+import { createHash } from 'crypto';
 import { getConfigManager } from '@job-applier/config';
 import { DiscoveredJob, JobSource, JobHuntConfig, Company } from './types.js';
 import { AIPageAnalyzer } from './ai-page-analyzer.js';
@@ -424,7 +425,6 @@ export class WebJobDiscovery {
    * Generate unique job ID from URL
    */
   private generateJobId(url: string): string {
-    const crypto = require('crypto');
-    return crypto.createHash('md5').update(url).digest('hex').slice(0, 12);
+    return createHash('md5').update(url).digest('hex').slice(0, 12);
   }
 }
