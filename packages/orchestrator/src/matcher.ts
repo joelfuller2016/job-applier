@@ -453,11 +453,14 @@ Only respond with the JSON, no other text.`;
 
   /**
    * Get top matches above a threshold
+   * @param jobs - List of jobs to match
+   * @param profile - User profile to match against
+   * @param minScore - Minimum score threshold (0-100 scale, default 60)
    */
   async getTopMatches(
     jobs: JobListing[],
     profile: UserProfile,
-    minScore: number = 0.6
+    minScore: number = 60
   ): Promise<JobMatch[]> {
     const matches = await this.batchCalculateMatches(jobs, profile);
     return matches.filter(m => m.overallScore >= minScore);
