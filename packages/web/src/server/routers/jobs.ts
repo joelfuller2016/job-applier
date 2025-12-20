@@ -1,6 +1,8 @@
 /**
  * Jobs Router
  * Handles job listing operations
+ * 
+ * SECURITY: All mutations require authentication via protectedProcedure
  */
 
 import { z } from 'zod';
@@ -73,7 +75,7 @@ export const jobsRouter = router({
 
   /**
    * Update job status (for manual edits)
-   * SECURITY: Requires authentication to modify job data
+   * SECURITY: Requires authentication to prevent unauthorized modifications
    */
   updateStatus: protectedProcedure
     .input(
@@ -100,7 +102,7 @@ export const jobsRouter = router({
 
   /**
    * Delete a job
-   * SECURITY: Requires authentication to delete jobs
+   * SECURITY: Requires authentication to prevent unauthorized deletions
    */
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
