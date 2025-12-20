@@ -1,6 +1,10 @@
 /**
  * Jobs Router
  * Handles job listing operations
+ *
+ * SECURITY: Read operations are public (jobs are discoverable)
+ * Mutations require authentication AND relationship verification
+ * Users can only modify jobs they have applications for
  */
 
 import { z } from 'zod';
@@ -9,11 +13,68 @@ import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { JobSearchQuery } from '@job-applier/core';
 
 /**
+ * Verify that the current user has permission to modify a job
+ * Users can only modify jobs they have applications for
+ *
+ * @throws TRPCError NOT_FOUND if job or profile doesn't exist
+ * @throws TRPCError FORBIDDEN if user has no application for the job
+ */
+async function verifyJobAccess(
+  ctx: {
+    profileRepository: {
+      getDefaultForUser: (userId: string) => { id: string; userId?: string | null } | null;
+    };
+    applicationRepository: {
+      hasApplied: (profileId: string, jobId: string) => boolean;
+    };
+    jobRepository: {
+      findById: (id: string) => Record<string, unknown> | null;
+    };
+    userId: string;
+  },
+  jobId: string
+) {
+  // Verify job exists
+  const job = ctx.jobRepository.findById(jobId);
+  if (!job) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Job not found',
+    });
+  }
+
+  // Get user's profile
+  const profile = ctx.profileRepository.getDefaultForUser(ctx.userId);
+  if (!profile) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'User profile not found. Please create a profile first.',
+    });
+  }
+
+  // Check if user has applied to this job
+  const hasApplied = ctx.applicationRepository.hasApplied(profile.id, jobId);
+  if (!hasApplied) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You can only modify jobs you have applied to',
+    });
+  }
+
+  return { job, profile };
+}
+
+/**
  * Jobs router for browsing and searching job listings
+ *
+ * SECURITY:
+ * - Read operations (list, getById, search, countByPlatform) are public
+ * - Write operations (updateStatus, delete) require authentication + job access
  */
 export const jobsRouter = router({
   /**
    * List jobs with optional filters
+   * PUBLIC: Jobs are discoverable by anyone
    */
   list: publicProcedure
     .input(
@@ -27,6 +88,7 @@ export const jobsRouter = router({
 
   /**
    * Get job by ID
+   * PUBLIC: Job details are viewable by anyone
    */
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
@@ -36,7 +98,7 @@ export const jobsRouter = router({
       if (!job) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: `Job with ID ${input.id} not found`,
+          message: 'Job not found',
         });
       }
 
@@ -45,6 +107,7 @@ export const jobsRouter = router({
 
   /**
    * Search jobs with filters
+   * PUBLIC: Search is available to anyone
    */
   search: publicProcedure
     .input(
@@ -65,6 +128,7 @@ export const jobsRouter = router({
 
   /**
    * Get job counts by platform
+   * PUBLIC: Statistics are viewable by anyone
    */
   countByPlatform: publicProcedure
     .query(async ({ ctx }) => {
@@ -73,7 +137,7 @@ export const jobsRouter = router({
 
   /**
    * Update job status (for manual edits)
-   * SECURITY: Requires authentication to modify job data
+   * SECURITY: Requires authentication AND application for the job
    */
   updateStatus: protectedProcedure
     .input(
@@ -86,12 +150,15 @@ export const jobsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify user has permission to modify this job
+      await verifyJobAccess(ctx, input.id);
+
       const updated = ctx.jobRepository.update(input.id, input.updates);
 
       if (!updated) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Job with ID ${input.id} not found`,
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to update job',
         });
       }
 
@@ -100,17 +167,20 @@ export const jobsRouter = router({
 
   /**
    * Delete a job
-   * SECURITY: Requires authentication to delete jobs
+   * SECURITY: Requires authentication AND application for the job
    */
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Verify user has permission to delete this job
+      await verifyJobAccess(ctx, input.id);
+
       const deleted = ctx.jobRepository.delete(input.id);
 
       if (!deleted) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Job with ID ${input.id} not found`,
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to delete job',
         });
       }
 
