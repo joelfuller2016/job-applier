@@ -22,8 +22,9 @@ import { JobFilters } from '@/components/jobs/job-filters';
 import { JobDetailModal } from '@/components/jobs/job-detail-modal';
 import { JobCompareModal } from '@/components/jobs/job-compare-modal';
 import type { Job, JobFilters as JobFiltersType, JobSort, JobViewMode } from '@/types/job';
+import { isDemoMode } from '@/lib/demo';
 
-// Mock data for demonstration
+// Demo data - ONLY used when APP_MODE=demo
 const mockJobs: Job[] = [
   {
     id: '1',
@@ -239,7 +240,8 @@ const mockJobs: Job[] = [
 ];
 
 export default function JobsPage() {
-  const [jobs, setJobs] = React.useState<Job[]>(mockJobs);
+  // Only use demo data when APP_MODE=demo, otherwise start with empty array
+  const [jobs, setJobs] = React.useState<Job[]>(isDemoMode() ? mockJobs : []);
   const [viewMode, setViewMode] = React.useState<JobViewMode>('table');
   const [selectedJobs, setSelectedJobs] = React.useState<string[]>([]);
   const [filters, setFilters] = React.useState<JobFiltersType>({});

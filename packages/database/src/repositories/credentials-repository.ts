@@ -10,28 +10,40 @@ const IV_LENGTH = 16;
 const KEY_LENGTH = 32;
 
 /**
+ * Development-only fallback keys (NEVER use in production)
+ */
+const DEV_FALLBACK_KEY = 'dev-only-encryption-key-not-for-production';
+const DEV_FALLBACK_SALT = 'dev-only-salt';
+
+/**
  * Get encryption key from environment
- * SECURITY: Encryption key MUST be provided via environment variable
+ * SECURITY: Encryption key MUST be provided via environment variable in production
+ * In development, falls back to insecure defaults with a warning
  */
 function getEncryptionKey(): Buffer {
   const secret = process.env.CREDENTIALS_ENCRYPTION_KEY;
   const salt = process.env.CREDENTIALS_ENCRYPTION_SALT;
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  if (!secret) {
-    throw new Error(
-      'CREDENTIALS_ENCRYPTION_KEY environment variable is required. ' +
-      'Generate a secure key with: openssl rand -base64 32'
+  if (!secret || !salt) {
+    if (isProduction) {
+      throw new Error(
+        'CREDENTIALS_ENCRYPTION_KEY and CREDENTIALS_ENCRYPTION_SALT environment variables are required in production. ' +
+        'Generate with: openssl rand -base64 32 (key) and openssl rand -base64 16 (salt)'
+      );
+    }
+
+    // Development fallback with warning
+    console.warn(
+      'WARNING: Using insecure development encryption keys. ' +
+      'Set CREDENTIALS_ENCRYPTION_KEY and CREDENTIALS_ENCRYPTION_SALT for production.'
     );
   }
 
-  if (!salt) {
-    throw new Error(
-      'CREDENTIALS_ENCRYPTION_SALT environment variable is required. ' +
-      'Generate a salt with: openssl rand -base64 16'
-    );
-  }
+  const effectiveSecret = secret || DEV_FALLBACK_KEY;
+  const effectiveSalt = salt || DEV_FALLBACK_SALT;
 
-  return scryptSync(secret, salt, KEY_LENGTH);
+  return scryptSync(effectiveSecret, effectiveSalt, KEY_LENGTH);
 }
 
 /**

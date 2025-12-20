@@ -11,6 +11,7 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
+import { isDemoMode } from '@/lib/demo';
 
 interface ApplicationFunnelProps {
   dateRange: string;
@@ -26,7 +27,12 @@ interface FunnelStage {
 
 export function ApplicationFunnel({ dateRange, isLoading }: ApplicationFunnelProps) {
   const data: FunnelStage[] = useMemo(() => {
-    // Mock data - replace with actual API calls
+    // Demo data - ONLY used when APP_MODE=demo
+    // In production, this would come from API calls
+    if (!isDemoMode()) {
+      return []; // Return empty array in production
+    }
+
     const stages = [
       { stage: 'Applied', count: 127, color: 'hsl(var(--primary))' },
       { stage: 'Screening', count: 45, color: 'hsl(var(--chart-1))' },
@@ -47,6 +53,15 @@ export function ApplicationFunnel({ dateRange, isLoading }: ApplicationFunnelPro
     return (
       <div className="flex h-[300px] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Empty state for production mode
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+        <p>No application data available</p>
       </div>
     );
   }
