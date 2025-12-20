@@ -20,9 +20,11 @@
 10. [Performance Requirements](#10-performance-requirements)
 11. [Deployment & Operations Requirements](#11-deployment--operations-requirements)
 12. [Compliance & Legal Requirements](#12-compliance--legal-requirements)
-13. [Testing Requirements](#13-testing-requirements)
-14. [Acceptance Criteria](#14-acceptance-criteria)
-15. [Future Roadmap](#15-future-roadmap)
+13. [Application Modules System](#13-application-modules-system)
+14. [Platform Integration Modules](#14-platform-integration-modules)
+15. [Testing Requirements](#15-testing-requirements)
+16. [Acceptance Criteria](#16-acceptance-criteria)
+17. [Future Roadmap](#17-future-roadmap)
 
 ---
 
@@ -94,11 +96,16 @@ To create a comprehensive job search automation platform that reduces the time a
 
 | Requirement | Details |
 |------------|---------|
-| FR-AUTH-001.1 | Support Google OAuth 2.0 authentication |
-| FR-AUTH-001.2 | Support email/password credential authentication |
-| FR-AUTH-001.3 | Validate email format during registration |
+| FR-AUTH-001.1 | Support Google OAuth 2.0 authentication with secure callback handling |
+| FR-AUTH-001.2 | Support email/password credential authentication with bcrypt hashing |
+| FR-AUTH-001.3 | Validate email format during registration (RFC 5322 compliant) |
 | FR-AUTH-001.4 | Create user record in database upon successful registration |
-| FR-AUTH-001.5 | Generate secure session token upon login |
+| FR-AUTH-001.5 | Generate secure session token upon login (256-bit entropy) |
+| FR-AUTH-001.6 | Support GitHub OAuth 2.0 as alternative provider |
+| FR-AUTH-001.7 | Support Microsoft/Azure AD OAuth for enterprise users |
+| FR-AUTH-001.8 | Implement email verification flow with secure token |
+| FR-AUTH-001.9 | Enforce password complexity (min 8 chars, mixed case, number, symbol) |
+| FR-AUTH-001.10 | Implement rate limiting on registration (5 attempts/IP/hour) |
 
 #### FR-AUTH-002: User Login
 **Priority:** High
@@ -106,33 +113,126 @@ To create a comprehensive job search automation platform that reduces the time a
 
 | Requirement | Details |
 |------------|---------|
-| FR-AUTH-002.1 | Support multiple authentication providers |
-| FR-AUTH-002.2 | Implement session management with secure cookies |
-| FR-AUTH-002.3 | Persist login state across browser sessions |
-| FR-AUTH-002.4 | Track last login timestamp |
-| FR-AUTH-002.5 | Support logout functionality with session invalidation |
+| FR-AUTH-002.1 | Support multiple authentication providers (Google, GitHub, Microsoft, credentials) |
+| FR-AUTH-002.2 | Implement session management with HttpOnly, Secure, SameSite cookies |
+| FR-AUTH-002.3 | Persist login state across browser sessions (remember me option) |
+| FR-AUTH-002.4 | Track last login timestamp and IP address |
+| FR-AUTH-002.5 | Support logout functionality with complete session invalidation |
+| FR-AUTH-002.6 | Implement brute force protection (lockout after 5 failed attempts) |
+| FR-AUTH-002.7 | Support account lockout notification via email |
+| FR-AUTH-002.8 | Implement session timeout (configurable, default 24 hours) |
+| FR-AUTH-002.9 | Support concurrent session management (limit active sessions) |
+| FR-AUTH-002.10 | Provide "logout from all devices" functionality |
 
-#### FR-AUTH-003: Demo Mode
+#### FR-AUTH-003: Two-Factor Authentication (2FA)
+**Priority:** High
+**Description:** Users must be able to enable 2FA for enhanced security.
+
+| Requirement | Details |
+|------------|---------|
+| FR-AUTH-003.1 | Support TOTP-based 2FA (Google Authenticator, Authy compatible) |
+| FR-AUTH-003.2 | Generate and display QR code for authenticator setup |
+| FR-AUTH-003.3 | Provide backup codes (10 single-use recovery codes) |
+| FR-AUTH-003.4 | Allow 2FA to be enabled/disabled from settings |
+| FR-AUTH-003.5 | Require current password to modify 2FA settings |
+| FR-AUTH-003.6 | Support SMS-based 2FA as fallback option |
+| FR-AUTH-003.7 | Implement 2FA bypass for trusted devices (30-day remember) |
+| FR-AUTH-003.8 | Log all 2FA events for security audit |
+
+#### FR-AUTH-004: Password Management
+**Priority:** High
+**Description:** Users must be able to manage their passwords securely.
+
+| Requirement | Details |
+|------------|---------|
+| FR-AUTH-004.1 | Support password reset via email with secure token |
+| FR-AUTH-004.2 | Implement password reset token expiration (1 hour) |
+| FR-AUTH-004.3 | Allow password change from account settings |
+| FR-AUTH-004.4 | Require current password for password changes |
+| FR-AUTH-004.5 | Prevent reuse of last 5 passwords |
+| FR-AUTH-004.6 | Check passwords against known breach databases (HaveIBeenPwned) |
+| FR-AUTH-004.7 | Display password strength indicator during entry |
+| FR-AUTH-004.8 | Send email notification on password change |
+
+#### FR-AUTH-005: Demo Mode
 **Priority:** Medium
 **Description:** Provide a demo mode for testing without production credentials.
 
 | Requirement | Details |
 |------------|---------|
-| FR-AUTH-003.1 | Enable demo mode only in development environment |
-| FR-AUTH-003.2 | Provide default demo credentials (demo@example.com) |
-| FR-AUTH-003.3 | Gate all mock data behind demo mode checks |
-| FR-AUTH-003.4 | Explicitly disable demo features in production builds |
+| FR-AUTH-005.1 | Enable demo mode only when APP_MODE=demo AND NODE_ENV=development |
+| FR-AUTH-005.2 | Provide default demo credentials (demo@example.com / demo123) |
+| FR-AUTH-005.3 | Gate all mock data behind isDemoMode() checks |
+| FR-AUTH-005.4 | Explicitly disable demo features in production builds |
+| FR-AUTH-005.5 | Display clear "Demo Mode" indicator in UI |
+| FR-AUTH-005.6 | Reset demo data on each session start |
+| FR-AUTH-005.7 | Prevent demo credentials from working in production |
 
-#### FR-AUTH-004: Account Management
+#### FR-AUTH-006: Account Management
 **Priority:** Medium
 **Description:** Users must be able to manage their account settings.
 
 | Requirement | Details |
 |------------|---------|
-| FR-AUTH-004.1 | Allow users to update profile name and image |
-| FR-AUTH-004.2 | Support account deletion with cascade delete of all data |
-| FR-AUTH-004.3 | Display current authentication provider |
-| FR-AUTH-004.4 | Show email verification status |
+| FR-AUTH-006.1 | Allow users to update display name and avatar |
+| FR-AUTH-006.2 | Support account deletion with cascade delete of all data |
+| FR-AUTH-006.3 | Display current authentication provider(s) |
+| FR-AUTH-006.4 | Show email verification status with resend option |
+| FR-AUTH-006.5 | Allow linking multiple OAuth providers to one account |
+| FR-AUTH-006.6 | Support unlinking OAuth providers (if password set) |
+| FR-AUTH-006.7 | Display active sessions with device/location info |
+| FR-AUTH-006.8 | Allow terminating individual sessions |
+| FR-AUTH-006.9 | Implement account export for GDPR compliance |
+| FR-AUTH-006.10 | Require email confirmation for account deletion |
+
+#### FR-AUTH-007: Platform Credentials Management
+**Priority:** High
+**Description:** System must securely manage credentials for job platforms.
+
+| Requirement | Details |
+|------------|---------|
+| FR-AUTH-007.1 | Store LinkedIn credentials with AES-256-GCM encryption |
+| FR-AUTH-007.2 | Store Indeed credentials with AES-256-GCM encryption |
+| FR-AUTH-007.3 | Store Glassdoor credentials with AES-256-GCM encryption |
+| FR-AUTH-007.4 | Store ZipRecruiter credentials with AES-256-GCM encryption |
+| FR-AUTH-007.5 | Support OAuth tokens for platforms that offer it |
+| FR-AUTH-007.6 | Implement secure key derivation (PBKDF2 with 100k iterations) |
+| FR-AUTH-007.7 | Never log or display plaintext passwords |
+| FR-AUTH-007.8 | Validate credential encryption on storage |
+| FR-AUTH-007.9 | Support credential rotation without re-entry |
+| FR-AUTH-007.10 | Detect and alert on credential expiration |
+
+#### FR-AUTH-008: Session Persistence for Automation
+**Priority:** High
+**Description:** System must maintain authenticated sessions for browser automation.
+
+| Requirement | Details |
+|------------|---------|
+| FR-AUTH-008.1 | Persist browser cookies between automation sessions |
+| FR-AUTH-008.2 | Store session data with 24-hour validity window |
+| FR-AUTH-008.3 | Support platform-specific session files (linkedin.json, indeed.json) |
+| FR-AUTH-008.4 | Implement automatic session refresh before expiration |
+| FR-AUTH-008.5 | Detect login status before each automation run |
+| FR-AUTH-008.6 | Handle CAPTCHA detection with user notification |
+| FR-AUTH-008.7 | Support manual login fallback for CAPTCHA resolution |
+| FR-AUTH-008.8 | Implement session recovery after browser crash |
+| FR-AUTH-008.9 | Track session activity timestamps |
+| FR-AUTH-008.10 | Clean up expired sessions automatically |
+
+#### FR-AUTH-009: Admin Authentication
+**Priority:** High
+**Description:** Administrators must have elevated access controls.
+
+| Requirement | Details |
+|------------|---------|
+| FR-AUTH-009.1 | Support admin role designation in user records |
+| FR-AUTH-009.2 | Require 2FA for all admin accounts |
+| FR-AUTH-009.3 | Implement admin session timeout (4 hours max) |
+| FR-AUTH-009.4 | Log all admin actions for audit trail |
+| FR-AUTH-009.5 | Support admin impersonation for troubleshooting |
+| FR-AUTH-009.6 | Require additional authentication for sensitive admin actions |
+| FR-AUTH-009.7 | Implement IP whitelist option for admin access |
+| FR-AUTH-009.8 | Send alerts on admin login from new device/location |
 
 ---
 
@@ -793,97 +893,407 @@ To create a comprehensive job search automation platform that reduces the time a
 
 ## 7. User Interface Requirements
 
-### 7.1 Page Requirements
+### 7.1 Design System Requirements
 
-#### Dashboard (`/`)
-| ID | Requirement |
-|----|-------------|
-| UI-DASH-001 | Display overview statistics (jobs, applications, success rate) |
-| UI-DASH-002 | Show recent activity feed |
-| UI-DASH-003 | Display application pipeline/kanban view |
-| UI-DASH-004 | Show recent job discoveries |
-| UI-DASH-005 | Provide quick action buttons |
-| UI-DASH-006 | Display active hunt sessions |
+#### UI-DS-001: Core Design System
+**Priority:** High
+**Description:** Establish consistent visual language across the application.
 
-#### Profile Page (`/profile`)
-| ID | Requirement |
-|----|-------------|
-| UI-PROF-001 | Profile selector for multi-profile support |
-| UI-PROF-002 | Personal information form |
-| UI-PROF-003 | Work experience editor |
-| UI-PROF-004 | Education history editor |
-| UI-PROF-005 | Skills management interface |
-| UI-PROF-006 | Resume upload with parsing |
-| UI-PROF-007 | Preferences configuration |
-| UI-PROF-008 | Profile duplication option |
+| Requirement | Details |
+|-------------|---------|
+| UI-DS-001.1 | Implement TailwindCSS design tokens for colors, spacing, typography |
+| UI-DS-001.2 | Define 8-point spacing grid system (4px, 8px, 16px, 24px, 32px, etc.) |
+| UI-DS-001.3 | Establish typography scale (12px, 14px, 16px, 18px, 24px, 32px, 48px) |
+| UI-DS-001.4 | Define primary, secondary, accent, success, warning, error color palettes |
+| UI-DS-001.5 | Create shadow elevation system (sm, md, lg, xl) |
+| UI-DS-001.6 | Define border radius tokens (none, sm, md, lg, full) |
+| UI-DS-001.7 | Establish transition timing functions and durations |
+| UI-DS-001.8 | Document all design tokens in Storybook or equivalent |
 
-#### Hunt Page (`/hunt`)
-| ID | Requirement |
-|----|-------------|
-| UI-HUNT-001 | Search parameter form |
-| UI-HUNT-002 | Profile selector |
-| UI-HUNT-003 | Progress tracker |
-| UI-HUNT-004 | Job results list with match scores |
-| UI-HUNT-005 | Confirmation dialogs for auto-apply |
-| UI-HUNT-006 | Activity logs |
+#### UI-DS-002: Theme Support
+**Priority:** Medium
+**Description:** Support light and dark color themes.
 
-#### Jobs Page (`/jobs`)
-| ID | Requirement |
-|----|-------------|
-| UI-JOBS-001 | Search and filter interface |
-| UI-JOBS-002 | Job listing cards with key info |
-| UI-JOBS-003 | Detailed job view modal |
-| UI-JOBS-004 | Match score display |
-| UI-JOBS-005 | Easy-apply indicators |
-| UI-JOBS-006 | Platform filter |
-| UI-JOBS-007 | Save/apply actions |
+| Requirement | Details |
+|-------------|---------|
+| UI-DS-002.1 | Implement system preference detection (prefers-color-scheme) |
+| UI-DS-002.2 | Provide manual theme toggle in UI |
+| UI-DS-002.3 | Persist theme preference in localStorage |
+| UI-DS-002.4 | Define semantic color tokens for both themes |
+| UI-DS-002.5 | Ensure all components render correctly in both themes |
+| UI-DS-002.6 | Support theme switching without page reload |
+| UI-DS-002.7 | Provide high-contrast theme option for accessibility |
 
-#### Applications Page (`/applications`)
-| ID | Requirement |
-|----|-------------|
-| UI-APP-001 | Kanban board view |
-| UI-APP-002 | Status filters |
-| UI-APP-003 | Application detail modal |
-| UI-APP-004 | Notes/events viewer |
-| UI-APP-005 | Status update controls |
-| UI-APP-006 | Follow-up tracking |
+---
 
-#### Automation Page (`/automation`)
-| ID | Requirement |
-|----|-------------|
-| UI-AUTO-001 | Start/stop/pause controls |
-| UI-AUTO-002 | Status indicator |
-| UI-AUTO-003 | Rate limit configuration |
-| UI-AUTO-004 | Session history |
-| UI-AUTO-005 | Log viewer |
+### 7.2 Layout Requirements
 
-#### Analytics Page (`/analytics`)
-| ID | Requirement |
-|----|-------------|
-| UI-ANAL-001 | Applications by status chart |
-| UI-ANAL-002 | Response rate visualization |
-| UI-ANAL-003 | Timeline view |
-| UI-ANAL-004 | Trend charts |
-| UI-ANAL-005 | Success metrics |
+#### UI-LAY-001: Application Shell
+**Priority:** High
+**Description:** Define the overall application layout structure.
 
-#### Settings Page (`/settings`)
-| ID | Requirement |
-|----|-------------|
-| UI-SET-001 | AI configuration |
-| UI-SET-002 | Browser settings |
-| UI-SET-003 | Rate limits |
-| UI-SET-004 | Logging preferences |
-| UI-SET-005 | Reset to defaults |
+| Requirement | Details |
+|-------------|---------|
+| UI-LAY-001.1 | Implement responsive sidebar navigation (collapsible on mobile) |
+| UI-LAY-001.2 | Provide persistent header with user menu and notifications |
+| UI-LAY-001.3 | Implement breadcrumb navigation for nested routes |
+| UI-LAY-001.4 | Support keyboard navigation between main sections (Cmd/Ctrl + 1-9) |
+| UI-LAY-001.5 | Display global search accessible via Cmd/Ctrl + K |
+| UI-LAY-001.6 | Show system status indicator in header (automation running, etc.) |
+| UI-LAY-001.7 | Implement command palette for power users |
+| UI-LAY-001.8 | Support full-screen mode for focused workflows |
 
-### 7.2 Component Requirements
+#### UI-LAY-002: Responsive Breakpoints
+**Priority:** High
+**Description:** Define responsive behavior across device sizes.
+
+| Requirement | Details |
+|-------------|---------|
+| UI-LAY-002.1 | Mobile: 320px - 767px (single column, bottom nav) |
+| UI-LAY-002.2 | Tablet: 768px - 1023px (sidebar + content, collapsible) |
+| UI-LAY-002.3 | Desktop: 1024px - 1439px (full sidebar + content) |
+| UI-LAY-002.4 | Large: 1440px+ (sidebar + content + optional panel) |
+| UI-LAY-002.5 | Touch targets minimum 44x44px on mobile |
+| UI-LAY-002.6 | Horizontal scrolling prevention on all breakpoints |
+| UI-LAY-002.7 | Maintain readable line lengths (max 75 characters) |
+
+---
+
+### 7.3 Page Requirements
+
+#### Dashboard (`/`) - UI-DASH
+**Priority:** High
+**Description:** Primary landing page displaying overview and quick actions.
 
 | ID | Requirement | Details |
 |----|-------------|---------|
-| UI-COMP-001 | Consistent styling | All components use TailwindCSS design system |
-| UI-COMP-002 | Dark mode ready | Support for light/dark themes |
-| UI-COMP-003 | Loading states | All async components show loading indicators |
-| UI-COMP-004 | Error boundaries | Graceful error handling with user feedback |
-| UI-COMP-005 | Form validation | Real-time validation with clear error messages |
+| UI-DASH-001 | Statistics Cards | Display jobs discovered, applications sent, response rate, interviews |
+| UI-DASH-002 | Trend Indicators | Show percentage change from previous period (week/month) |
+| UI-DASH-003 | Activity Feed | Real-time feed of recent events (applications, matches, responses) |
+| UI-DASH-004 | Application Pipeline | Visual Kanban-style pipeline (Applied → Reviewed → Interview → Offer) |
+| UI-DASH-005 | Active Hunts Widget | Display currently running automation sessions with progress |
+| UI-DASH-006 | Recent Jobs Widget | Show 5 most recent job discoveries with match scores |
+| UI-DASH-007 | Quick Actions | Primary CTAs: Start Hunt, Upload Resume, View Applications |
+| UI-DASH-008 | Module Status | Display enabled/disabled status of application modules |
+| UI-DASH-009 | Daily Goal Tracker | Show progress toward daily application targets |
+| UI-DASH-010 | Upcoming Follow-ups | List applications requiring follow-up action |
+| UI-DASH-011 | Skills Gap Summary | Highlight most common missing skills from rejections |
+| UI-DASH-012 | Platform Health | Status indicators for each integrated platform |
+
+#### Profile Page (`/profile`) - UI-PROF
+**Priority:** High
+**Description:** Comprehensive profile management interface.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-PROF-001 | Profile Switcher | Dropdown/tabs to switch between multiple profiles |
+| UI-PROF-002 | Profile Overview | Summary card with name, headline, photo, completeness score |
+| UI-PROF-003 | Personal Info Form | First name, last name, headline, summary, contact details |
+| UI-PROF-004 | Contact Editor | Email, phone, location, LinkedIn URL, GitHub, portfolio |
+| UI-PROF-005 | Experience Editor | Add/edit/remove work experiences with rich text descriptions |
+| UI-PROF-006 | Experience Timeline | Visual timeline view of work history |
+| UI-PROF-007 | Education Editor | Add/edit/remove education with degree, field, dates, GPA |
+| UI-PROF-008 | Skills Manager | Add skills with proficiency levels (1-5 stars or percentage) |
+| UI-PROF-009 | Skill Categories | Group skills by category (Languages, Frameworks, Tools, Soft) |
+| UI-PROF-010 | Certifications List | Add certifications with issuer, date, expiration, credential ID |
+| UI-PROF-011 | Projects Showcase | Add projects with description, tech stack, links |
+| UI-PROF-012 | Resume Upload | Drag-and-drop resume upload with preview |
+| UI-PROF-013 | Resume Parsing Status | Progress indicator during AI parsing |
+| UI-PROF-014 | Parse Review Modal | Review and confirm extracted data before saving |
+| UI-PROF-015 | Preferences Panel | Job preferences (titles, locations, salary, remote, type) |
+| UI-PROF-016 | Blocked Companies | List of companies to exclude from applications |
+| UI-PROF-017 | Profile Actions | Duplicate, Export, Delete profile options |
+| UI-PROF-018 | Completeness Indicator | Visual indicator of profile completeness with suggestions |
+| UI-PROF-019 | Version History | Track changes to profile over time |
+| UI-PROF-020 | Import Options | Import from LinkedIn, Indeed, or JSON file |
+
+#### Hunt Page (`/hunt`) - UI-HUNT
+**Priority:** High
+**Description:** AI-powered job discovery and application interface.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-HUNT-001 | Search Configuration | Form with query, location, remote toggle, salary range |
+| UI-HUNT-002 | Advanced Filters | Experience level, job type, date posted, company size |
+| UI-HUNT-003 | Profile Selector | Choose which profile to use for matching |
+| UI-HUNT-004 | Source Selector | Toggle which platforms/modules to search (LinkedIn, Indeed, etc.) |
+| UI-HUNT-005 | Match Threshold Slider | Set minimum match score (0-100) for results |
+| UI-HUNT-006 | Auto-Apply Toggle | Enable/disable automatic application submission |
+| UI-HUNT-007 | Dry Run Option | Test mode that simulates without submitting |
+| UI-HUNT-008 | Max Jobs Limit | Set maximum number of jobs to process |
+| UI-HUNT-009 | Hunt Progress Panel | Real-time progress (Discovering → Matching → Applying) |
+| UI-HUNT-010 | Live Job Stream | Stream of discovered jobs appearing in real-time |
+| UI-HUNT-011 | Match Results Grid | Grid/list of matched jobs with scores |
+| UI-HUNT-012 | Job Preview Card | Expandable card with job details, match analysis |
+| UI-HUNT-013 | Match Breakdown | Visual breakdown of match score components |
+| UI-HUNT-014 | Skills Gap Display | Highlight missing skills for each job |
+| UI-HUNT-015 | Confirmation Dialog | Per-job confirmation before auto-apply (if enabled) |
+| UI-HUNT-016 | Activity Log | Scrolling log of hunt activities and events |
+| UI-HUNT-017 | Error Notifications | Toast notifications for errors with retry options |
+| UI-HUNT-018 | Hunt Summary | Final summary with stats (found, matched, applied) |
+| UI-HUNT-019 | Save Search | Save search parameters for quick re-run |
+| UI-HUNT-020 | Hunt History | Access previous hunt sessions and results |
+
+#### Jobs Page (`/jobs`) - UI-JOBS
+**Priority:** High
+**Description:** Browse and manage discovered job listings.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-JOBS-001 | Search Bar | Full-text search across job titles, companies, descriptions |
+| UI-JOBS-002 | Filter Sidebar | Filters: platform, match score, date, location, salary, status |
+| UI-JOBS-003 | Sort Options | Sort by: match score, date posted, salary, company name |
+| UI-JOBS-004 | View Toggle | Switch between grid, list, and table views |
+| UI-JOBS-005 | Job Cards | Card showing title, company, location, salary, match score, platform icon |
+| UI-JOBS-006 | Match Score Badge | Color-coded badge (green/yellow/red) based on match score |
+| UI-JOBS-007 | Easy Apply Indicator | Badge indicating if Easy Apply is available |
+| UI-JOBS-008 | Platform Icon | Visual indicator of source platform |
+| UI-JOBS-009 | Job Detail Modal | Full job description, requirements, benefits in modal |
+| UI-JOBS-010 | Match Analysis Tab | Detailed AI analysis of job-profile fit |
+| UI-JOBS-011 | Similar Jobs Tab | List of similar positions |
+| UI-JOBS-012 | Company Info Tab | Company details, size, industry, Glassdoor ratings |
+| UI-JOBS-013 | Apply Button | Primary action to apply (manual or automated) |
+| UI-JOBS-014 | Save Job Action | Save job for later review |
+| UI-JOBS-015 | Hide Job Action | Remove job from list (with undo) |
+| UI-JOBS-016 | Bulk Actions | Select multiple jobs for bulk apply/save/hide |
+| UI-JOBS-017 | Pagination/Infinite Scroll | Load more jobs on scroll or pagination |
+| UI-JOBS-018 | Empty State | Helpful message and actions when no jobs found |
+| UI-JOBS-019 | Job Status Indicators | Applied, Saved, Hidden status on cards |
+| UI-JOBS-020 | Quick Filters | One-click filters: "High Match", "Easy Apply", "Remote" |
+
+#### Applications Page (`/applications`) - UI-APP
+**Priority:** High
+**Description:** Track and manage job applications.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-APP-001 | Kanban Board | Drag-and-drop columns: Applied, Reviewed, Interview, Offer, Rejected |
+| UI-APP-002 | List View Toggle | Alternative list view for applications |
+| UI-APP-003 | Status Filters | Filter by application status |
+| UI-APP-004 | Platform Filters | Filter by source platform |
+| UI-APP-005 | Date Range Filter | Filter by application date range |
+| UI-APP-006 | Search | Search applications by company or job title |
+| UI-APP-007 | Application Cards | Card with job title, company, date, status, next action |
+| UI-APP-008 | Detail Modal | Full application details in slide-out panel |
+| UI-APP-009 | Timeline Tab | Chronological timeline of all application events |
+| UI-APP-010 | Notes Tab | Add/view notes and comments |
+| UI-APP-011 | Documents Tab | View submitted resume, cover letter |
+| UI-APP-012 | Status Update | Quick status change dropdown |
+| UI-APP-013 | Add Note Action | Quick add note to application |
+| UI-APP-014 | Schedule Follow-up | Set reminder for follow-up action |
+| UI-APP-015 | Archive Action | Archive completed/rejected applications |
+| UI-APP-016 | Reapply Action | Reapply to job with updated profile |
+| UI-APP-017 | Statistics Summary | Stats bar showing counts per status |
+| UI-APP-018 | Response Rate | Calculate and display response rate |
+| UI-APP-019 | Average Response Time | Display average time to response |
+| UI-APP-020 | Export Applications | Export application data to CSV |
+
+#### Automation Page (`/automation`) - UI-AUTO
+**Priority:** Medium
+**Description:** Control and monitor automation workflows.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-AUTO-001 | Master Controls | Start, Stop, Pause, Resume buttons |
+| UI-AUTO-002 | Status Display | Current status (Idle, Running, Paused, Error) with indicator |
+| UI-AUTO-003 | Progress Bar | Overall progress of current automation session |
+| UI-AUTO-004 | Rate Limit Display | Show current rate limits and usage |
+| UI-AUTO-005 | Rate Limit Config | Adjust applications per hour/day limits |
+| UI-AUTO-006 | Delay Config | Set delay between actions (min/max) |
+| UI-AUTO-007 | Browser Mode Toggle | Headless vs headed browser mode |
+| UI-AUTO-008 | Screenshot Toggle | Enable/disable screenshots on error |
+| UI-AUTO-009 | Session History | Table of past automation sessions |
+| UI-AUTO-010 | Session Details | Click to view session logs and results |
+| UI-AUTO-011 | Live Log Viewer | Real-time scrolling log output |
+| UI-AUTO-012 | Log Filters | Filter logs by level (info, warn, error) |
+| UI-AUTO-013 | Error Summary | Highlight recent errors with details |
+| UI-AUTO-014 | Retry Failed | Button to retry failed applications |
+| UI-AUTO-015 | Platform Status | Connection status per platform |
+| UI-AUTO-016 | Session Management | Manage platform login sessions |
+| UI-AUTO-017 | CAPTCHA Alert | Prominent alert when CAPTCHA detected |
+| UI-AUTO-018 | Manual Login | Button to open browser for manual login |
+| UI-AUTO-019 | Schedule Config | Schedule automation runs (future) |
+| UI-AUTO-020 | Resource Monitor | CPU/memory usage of automation |
+
+#### Analytics Page (`/analytics`) - UI-ANAL
+**Priority:** Medium
+**Description:** Visualize application statistics and insights.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-ANAL-001 | Date Range Selector | Select time period for all charts |
+| UI-ANAL-002 | Applications Over Time | Line chart of applications per day/week |
+| UI-ANAL-003 | Status Distribution | Pie/donut chart of applications by status |
+| UI-ANAL-004 | Platform Distribution | Bar chart of applications by platform |
+| UI-ANAL-005 | Response Rate Trend | Line chart of response rate over time |
+| UI-ANAL-006 | Match Score Distribution | Histogram of match scores |
+| UI-ANAL-007 | Top Companies | Bar chart of most applied-to companies |
+| UI-ANAL-008 | Skills Gap Analysis | Chart of most common missing skills |
+| UI-ANAL-009 | Salary Analysis | Distribution of applied job salaries |
+| UI-ANAL-010 | Location Heatmap | Geographic distribution of applications |
+| UI-ANAL-011 | Success Funnel | Funnel visualization (Applied → Interview → Offer) |
+| UI-ANAL-012 | Week-over-Week | Comparison metrics vs previous period |
+| UI-ANAL-013 | Goal Progress | Progress toward defined goals |
+| UI-ANAL-014 | Export Report | Export analytics as PDF report |
+| UI-ANAL-015 | Insights Panel | AI-generated insights and recommendations |
+
+#### Settings Page (`/settings`) - UI-SET
+**Priority:** Medium
+**Description:** Application configuration and preferences.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-SET-001 | Settings Navigation | Sidebar or tabs for settings categories |
+| UI-SET-002 | Account Settings | Profile photo, name, email, password change |
+| UI-SET-003 | Security Settings | 2FA setup, active sessions, login history |
+| UI-SET-004 | Platform Credentials | Manage login credentials for each platform |
+| UI-SET-005 | AI Configuration | Claude model selection, temperature, max tokens |
+| UI-SET-006 | Browser Settings | Headless mode, timeout, viewport size |
+| UI-SET-007 | Rate Limits | Default rate limit configuration |
+| UI-SET-008 | Notification Settings | Email and in-app notification preferences |
+| UI-SET-009 | Data Management | Export data, delete data, storage usage |
+| UI-SET-010 | Module Management | Enable/disable application modules (Admin) |
+| UI-SET-011 | API Keys | Manage API keys for integrations |
+| UI-SET-012 | Webhook Config | Configure webhook endpoints for events |
+| UI-SET-013 | Theme Settings | Light/dark mode, accent color |
+| UI-SET-014 | Language Settings | UI language preference |
+| UI-SET-015 | Reset to Defaults | Reset all settings to default values |
+
+#### Admin Panel (`/admin`) - UI-ADMIN
+**Priority:** High
+**Description:** Administrative controls for module and system management.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-ADMIN-001 | Admin Dashboard | System overview with health metrics |
+| UI-ADMIN-002 | Module Manager | Enable/disable application modules |
+| UI-ADMIN-003 | Module Status | Health status of each module |
+| UI-ADMIN-004 | Module Config | Per-module configuration options |
+| UI-ADMIN-005 | User Management | View and manage user accounts |
+| UI-ADMIN-006 | Usage Statistics | Platform-wide usage statistics |
+| UI-ADMIN-007 | Error Dashboard | System-wide error monitoring |
+| UI-ADMIN-008 | Rate Limit Manager | Global rate limit configuration |
+| UI-ADMIN-009 | Platform Health | Status of all platform integrations |
+| UI-ADMIN-010 | Audit Log | View all admin actions |
+| UI-ADMIN-011 | Feature Flags | Toggle experimental features |
+| UI-ADMIN-012 | System Announcements | Create user-facing announcements |
+
+#### Authentication Pages - UI-AUTH
+**Priority:** High
+**Description:** Login, registration, and account recovery flows.
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-AUTH-001 | Login Page | Email/password form with OAuth buttons |
+| UI-AUTH-002 | OAuth Buttons | Google, GitHub, Microsoft sign-in buttons |
+| UI-AUTH-003 | Remember Me | Checkbox to persist login session |
+| UI-AUTH-004 | Forgot Password Link | Link to password reset flow |
+| UI-AUTH-005 | Register Page | Registration form with validation |
+| UI-AUTH-006 | Password Strength | Real-time password strength indicator |
+| UI-AUTH-007 | Terms Checkbox | Agreement to terms and privacy policy |
+| UI-AUTH-008 | Email Verification | Verification code/link entry page |
+| UI-AUTH-009 | Password Reset | Request reset and set new password pages |
+| UI-AUTH-010 | 2FA Entry | TOTP code entry page |
+| UI-AUTH-011 | Backup Codes | Display and manage backup codes |
+| UI-AUTH-012 | Error Messages | Clear, specific error messages |
+| UI-AUTH-013 | Loading States | Button loading states during auth |
+| UI-AUTH-014 | Demo Mode Login | Special demo login button (dev only) |
+| UI-AUTH-015 | Session Expired | Redirect with message on session expiry |
+
+---
+
+### 7.4 Component Library Requirements
+
+#### UI-COMP-001: Form Components
+| Requirement | Details |
+|-------------|---------|
+| UI-COMP-001.1 | Text input with label, placeholder, validation, helper text |
+| UI-COMP-001.2 | Textarea with character count and auto-resize |
+| UI-COMP-001.3 | Select dropdown with search and multi-select options |
+| UI-COMP-001.4 | Checkbox with label and indeterminate state |
+| UI-COMP-001.5 | Radio group with horizontal and vertical layouts |
+| UI-COMP-001.6 | Toggle switch for boolean options |
+| UI-COMP-001.7 | Date picker with range selection support |
+| UI-COMP-001.8 | File upload with drag-and-drop and preview |
+| UI-COMP-001.9 | Slider for numeric range selection |
+| UI-COMP-001.10 | Form validation with inline error messages |
+
+#### UI-COMP-002: Display Components
+| Requirement | Details |
+|-------------|---------|
+| UI-COMP-002.1 | Card component with header, body, footer, actions |
+| UI-COMP-002.2 | Badge for status and count indicators |
+| UI-COMP-002.3 | Avatar with fallback initials and status dot |
+| UI-COMP-002.4 | Table with sorting, filtering, pagination |
+| UI-COMP-002.5 | List with selectable items and actions |
+| UI-COMP-002.6 | Timeline for event history display |
+| UI-COMP-002.7 | Progress bar and progress ring |
+| UI-COMP-002.8 | Skeleton loaders for loading states |
+| UI-COMP-002.9 | Empty states with illustration and CTA |
+| UI-COMP-002.10 | Stats card with trend indicator |
+
+#### UI-COMP-003: Feedback Components
+| Requirement | Details |
+|-------------|---------|
+| UI-COMP-003.1 | Toast notifications (success, error, warning, info) |
+| UI-COMP-003.2 | Modal dialog with customizable actions |
+| UI-COMP-003.3 | Confirmation dialog for destructive actions |
+| UI-COMP-003.4 | Alert banner for page-level messages |
+| UI-COMP-003.5 | Tooltip with configurable placement |
+| UI-COMP-003.6 | Popover for contextual content |
+| UI-COMP-003.7 | Loading spinner with optional text |
+| UI-COMP-003.8 | Error boundary with retry action |
+
+#### UI-COMP-004: Navigation Components
+| Requirement | Details |
+|-------------|---------|
+| UI-COMP-004.1 | Sidebar with collapsible sections |
+| UI-COMP-004.2 | Top navigation bar with user menu |
+| UI-COMP-004.3 | Breadcrumb navigation |
+| UI-COMP-004.4 | Tabs with lazy loading support |
+| UI-COMP-004.5 | Pagination with page size selector |
+| UI-COMP-004.6 | Command palette (Cmd+K) |
+| UI-COMP-004.7 | Dropdown menu with icons |
+| UI-COMP-004.8 | Mobile bottom navigation |
+
+---
+
+### 7.5 Accessibility Requirements (WCAG 2.1 AA)
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| UI-A11Y-001 | Keyboard Navigation | All interactive elements reachable via keyboard |
+| UI-A11Y-002 | Focus Indicators | Visible focus rings on all focusable elements |
+| UI-A11Y-003 | Skip Links | Skip to main content link at page start |
+| UI-A11Y-004 | ARIA Labels | Proper ARIA labels on all interactive elements |
+| UI-A11Y-005 | Screen Reader Support | All content readable by screen readers |
+| UI-A11Y-006 | Alt Text | Descriptive alt text on all images |
+| UI-A11Y-007 | Color Contrast | Minimum 4.5:1 contrast ratio for text |
+| UI-A11Y-008 | Error Identification | Errors identified in text, not color alone |
+| UI-A11Y-009 | Form Labels | All form fields have associated labels |
+| UI-A11Y-010 | Heading Structure | Proper heading hierarchy (h1 → h2 → h3) |
+| UI-A11Y-011 | Resize Support | Content usable at 200% zoom |
+| UI-A11Y-012 | Motion Reduction | Respect prefers-reduced-motion setting |
+| UI-A11Y-013 | Touch Targets | Minimum 44x44px touch targets on mobile |
+| UI-A11Y-014 | Language Attribute | Proper lang attribute on html element |
+| UI-A11Y-015 | Live Regions | ARIA live regions for dynamic content updates |
+
+---
+
+### 7.6 Performance Requirements
+
+| ID | Requirement | Target |
+|----|-------------|--------|
+| UI-PERF-001 | First Contentful Paint | < 1.5 seconds |
+| UI-PERF-002 | Largest Contentful Paint | < 2.5 seconds |
+| UI-PERF-003 | Time to Interactive | < 3.5 seconds |
+| UI-PERF-004 | Cumulative Layout Shift | < 0.1 |
+| UI-PERF-005 | First Input Delay | < 100ms |
+| UI-PERF-006 | Bundle Size (Initial) | < 200KB gzipped |
+| UI-PERF-007 | Code Splitting | Lazy load routes and heavy components |
+| UI-PERF-008 | Image Optimization | WebP/AVIF with lazy loading |
+| UI-PERF-009 | List Virtualization | Virtualize lists > 100 items |
+| UI-PERF-010 | Debounced Inputs | Debounce search inputs (300ms) |
 
 ---
 
@@ -1170,9 +1580,541 @@ To create a comprehensive job search automation platform that reduces the time a
 
 ---
 
-## 13. Testing Requirements
+## 13. Application Modules System
 
-### 13.1 Unit Testing
+### 13.1 Module Architecture Overview
+
+The application uses a modular architecture for job application automation, allowing administrators to enable, disable, and configure individual modules based on platform availability, compliance requirements, and user needs.
+
+#### MOD-ARCH-001: Core Module System
+**Priority:** High
+**Description:** Define the modular system architecture for application automation.
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ARCH-001.1 | Each platform integration exists as an independent module |
+| MOD-ARCH-001.2 | Modules can be enabled/disabled without affecting other modules |
+| MOD-ARCH-001.3 | Modules share common interfaces (BasePlatformAdapter) |
+| MOD-ARCH-001.4 | Module configuration stored in database per-user and globally |
+| MOD-ARCH-001.5 | Admin can set global module availability |
+| MOD-ARCH-001.6 | Users can enable/disable available modules for their account |
+| MOD-ARCH-001.7 | Modules report health status to central monitoring |
+| MOD-ARCH-001.8 | Failed modules auto-disable with admin notification |
+
+---
+
+### 13.2 Admin Module Controls
+
+#### MOD-ADMIN-001: Global Module Management
+**Priority:** High
+**Description:** Administrators can control module availability system-wide.
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ADMIN-001.1 | View list of all registered modules with status |
+| MOD-ADMIN-001.2 | Enable/disable modules globally (affects all users) |
+| MOD-ADMIN-001.3 | Set module availability: "Enabled", "Disabled", "Beta", "Deprecated" |
+| MOD-ADMIN-001.4 | Configure per-module rate limits (override defaults) |
+| MOD-ADMIN-001.5 | Set maintenance mode per module (disable with message) |
+| MOD-ADMIN-001.6 | View module health metrics and error rates |
+| MOD-ADMIN-001.7 | Force reconnection/re-authentication for module |
+| MOD-ADMIN-001.8 | View aggregated usage statistics per module |
+
+#### MOD-ADMIN-002: Module Configuration
+**Priority:** High
+**Description:** Administrators can configure module-specific settings.
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ADMIN-002.1 | Configure module-specific API keys (if required) |
+| MOD-ADMIN-002.2 | Set default rate limits per module |
+| MOD-ADMIN-002.3 | Configure retry policies (attempts, backoff) |
+| MOD-ADMIN-002.4 | Set timeout values per module |
+| MOD-ADMIN-002.5 | Configure stealth mode options (delays, user-agent rotation) |
+| MOD-ADMIN-002.6 | Enable/disable specific module features |
+| MOD-ADMIN-002.7 | Set geographic restrictions per module |
+| MOD-ADMIN-002.8 | Configure fallback behavior when module fails |
+
+#### MOD-ADMIN-003: Module Monitoring Dashboard
+**Priority:** Medium
+**Description:** Real-time monitoring of module health and performance.
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ADMIN-003.1 | Display module status indicators (green/yellow/red) |
+| MOD-ADMIN-003.2 | Show success/failure rates per module (last 24h/7d/30d) |
+| MOD-ADMIN-003.3 | Display average response times per module |
+| MOD-ADMIN-003.4 | Track CAPTCHA encounter rates per platform |
+| MOD-ADMIN-003.5 | Show account lockout incidents |
+| MOD-ADMIN-003.6 | Alert on unusual error patterns |
+| MOD-ADMIN-003.7 | Track API quota usage (where applicable) |
+| MOD-ADMIN-003.8 | Display active user sessions per module |
+
+---
+
+### 13.3 User Module Controls
+
+#### MOD-USER-001: Module Selection
+**Priority:** Medium
+**Description:** Users can select which modules to use for job hunting.
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-USER-001.1 | View list of available modules (enabled by admin) |
+| MOD-USER-001.2 | Enable/disable modules for personal use |
+| MOD-USER-001.3 | See module status (connected, disconnected, error) |
+| MOD-USER-001.4 | View module description and capabilities |
+| MOD-USER-001.5 | See compliance notes and ToS warnings per module |
+| MOD-USER-001.6 | Set priority order for multi-module searches |
+| MOD-USER-001.7 | View personal usage statistics per module |
+
+#### MOD-USER-002: Module Authentication
+**Priority:** High
+**Description:** Users can authenticate with each platform module.
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-USER-002.1 | Enter credentials for each platform requiring login |
+| MOD-USER-002.2 | Initiate OAuth flow for platforms supporting it |
+| MOD-USER-002.3 | View connection status for each module |
+| MOD-USER-002.4 | Manually trigger re-authentication |
+| MOD-USER-002.5 | See session expiration warnings |
+| MOD-USER-002.6 | Clear stored credentials per module |
+| MOD-USER-002.7 | View last successful login time |
+
+---
+
+### 13.4 Module Disable Reasons
+
+Administrators may disable modules for the following reasons:
+
+| Reason Code | Description | User Message |
+|-------------|-------------|--------------|
+| MAINTENANCE | Scheduled or emergency maintenance | "Module temporarily unavailable for maintenance" |
+| TOS_VIOLATION | Platform ToS concerns | "Module disabled due to platform policy changes" |
+| HIGH_ERROR_RATE | Excessive failures detected | "Module temporarily disabled due to technical issues" |
+| API_DEPRECATED | Platform API no longer available | "Module discontinued - platform no longer supported" |
+| LEGAL_COMPLIANCE | Legal or regulatory concerns | "Module unavailable in your region" |
+| RATE_LIMITED | Platform-wide rate limiting | "Module temporarily limited - please try later" |
+| SECURITY_CONCERN | Security issue detected | "Module disabled for security review" |
+| BETA_ENDED | Beta testing period concluded | "Module beta period has ended" |
+
+---
+
+### 13.5 Module Registry Schema
+
+```
+Module {
+  id: string                    // Unique module identifier
+  name: string                  // Display name
+  description: string           // Module description
+  version: string               // Semantic version
+  platform: string              // Target platform
+  type: 'browser' | 'api' | 'hybrid'
+  status: 'enabled' | 'disabled' | 'beta' | 'deprecated'
+
+  // Capabilities
+  capabilities: {
+    jobSearch: boolean          // Can search for jobs
+    easyApply: boolean          // Supports easy/quick apply
+    directApply: boolean        // Can fill external forms
+    statusTracking: boolean     // Can track application status
+    profileSync: boolean        // Can sync profile data
+  }
+
+  // Configuration
+  config: {
+    requiresAuth: boolean       // Needs platform credentials
+    authMethod: 'credentials' | 'oauth' | 'session'
+    rateLimit: {
+      perMinute: number
+      perHour: number
+      perDay: number
+    }
+    timeout: number             // Request timeout (ms)
+    retryPolicy: {
+      maxAttempts: number
+      backoffMs: number
+    }
+  }
+
+  // Health
+  health: {
+    status: 'healthy' | 'degraded' | 'down'
+    lastCheck: timestamp
+    successRate24h: number
+    avgResponseTime: number
+    errorCount24h: number
+  }
+
+  // Metadata
+  createdAt: timestamp
+  updatedAt: timestamp
+  disabledReason?: string
+  disabledAt?: timestamp
+  disabledBy?: string           // Admin user ID
+}
+```
+
+---
+
+## 14. Platform Integration Modules
+
+### 16.1 Module Overview
+
+The following modules are available or planned for integration. Each module can be independently enabled or disabled by administrators.
+
+| Module ID | Platform | Type | Status | Auth Method |
+|-----------|----------|------|--------|-------------|
+| linkedin | LinkedIn | Browser | Active | Credentials/OAuth |
+| indeed | Indeed | Browser | Active | Credentials |
+| glassdoor | Glassdoor | Browser | Planned | Credentials |
+| ziprecruiter | ZipRecruiter | API/Browser | Planned | API Key |
+| greenhouse | Greenhouse ATS | Browser | Active | Session |
+| lever | Lever ATS | Browser | Active | Session |
+| workday | Workday ATS | Browser | Active | Session |
+| exa | Exa Search | API | Active | API Key |
+| company_sites | Direct Apply | Browser | Active | AI-Powered |
+
+---
+
+### 16.2 LinkedIn Module
+
+#### MOD-LI-001: LinkedIn Easy Apply
+**Status:** Active
+**Type:** Browser Automation (Playwright)
+**Source:** [GitHub - LinkedIn Easy Apply Bots](https://github.com/NathanDuma/LinkedIn-Easy-Apply-Bot)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-LI-001.1 | Authenticate via email/password to linkedin.com/login |
+| MOD-LI-001.2 | Navigate and search jobs with filters (keywords, location, remote) |
+| MOD-LI-001.3 | Filter for Easy Apply jobs only (f_AL=true) |
+| MOD-LI-001.4 | Click "Easy Apply" button to open modal |
+| MOD-LI-001.5 | Handle multi-step modal forms (up to 10 pages) |
+| MOD-LI-001.6 | Auto-fill common fields: name, email, phone, LinkedIn URL |
+| MOD-LI-001.7 | Handle common questions: experience years, work authorization, sponsorship |
+| MOD-LI-001.8 | Upload resume file when required |
+| MOD-LI-001.9 | Detect and skip "Follow company" checkbox |
+| MOD-LI-001.10 | Submit application and verify success toast |
+| MOD-LI-001.11 | Extract job details: title, company, location, description, skills |
+| MOD-LI-001.12 | Track applicant count for job popularity |
+
+**Technical Implementation:**
+- Uses Playwright for browser control
+- CSS selectors defined in `linkedin/selectors.ts`
+- Session persistence via cookies (24-hour validity)
+- CAPTCHA detection with user notification
+- Rate limiting: 10/minute, 50/hour, 200/day (configurable)
+
+**Detection Avoidance:**
+- Human-like typing delays (50-150ms per character)
+- Random delays between actions (200-500ms)
+- Realistic viewport and user-agent strings
+- Session cookie persistence to avoid repeated logins
+
+**References:**
+- [LinkedIn Easy Apply Bot - NathanDuma](https://github.com/NathanDuma/LinkedIn-Easy-Apply-Bot)
+- [LinkedIn GPT EasyApplyBot](https://github.com/JorgeFrias/LinkedIn-GPT-EasyApplyBot)
+- [AI-Powered LinkedIn Easy Apply](https://github.com/srikar-kodakandla/linkedin-easyapply-using-AI)
+
+---
+
+### 16.3 Indeed Module
+
+#### MOD-IN-001: Indeed Quick Apply
+**Status:** Active
+**Type:** Browser Automation (Playwright)
+**Source:** [Indeed Apply Documentation](https://docs.indeed.com/indeed-apply)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-IN-001.1 | Authenticate via secure.indeed.com/auth (2-step: email then password) |
+| MOD-IN-001.2 | Detect CAPTCHA and notify user for manual resolution |
+| MOD-IN-001.3 | Search jobs with filters (keywords, location, remote, salary, type) |
+| MOD-IN-001.4 | Identify Indeed Apply vs external apply buttons |
+| MOD-IN-001.5 | Handle Indeed Apply modal or new tab flow |
+| MOD-IN-001.6 | Auto-fill fields: name, email, phone, city, state |
+| MOD-IN-001.7 | Handle education dropdown (match to profile degree) |
+| MOD-IN-001.8 | Handle work authorization and sponsorship questions |
+| MOD-IN-001.9 | Upload resume and enter cover letter text |
+| MOD-IN-001.10 | Navigate multi-page forms (up to 10 pages) |
+| MOD-IN-001.11 | Submit and verify success message |
+| MOD-IN-001.12 | Parse salary information (min/max, period, estimated) |
+
+**Technical Implementation:**
+- Playwright browser automation
+- CSS selectors in `indeed/selectors.ts`
+- Handles new tab popups for some applications
+- Session persistence via cookies
+- Rate limiting: 8/minute, 40/hour, 150/day
+
+**References:**
+- [Indeed Apply Integration Guide](https://docs.indeed.com/indeed-apply)
+- [Indeed API Documentation](https://docs.indeed.com/)
+- [Apply with Indeed (AWI)](https://docs.indeed.com/indeed-apply/apply-with-indeed)
+
+---
+
+### 16.4 Glassdoor Module
+
+#### MOD-GD-001: Glassdoor Apply
+**Status:** Planned
+**Type:** Browser Automation (Playwright)
+**Source:** [Glassdoor + ZipRecruiter Scraper](https://apify.com/canadesk/glassdoor-ziprecruiter/api)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-GD-001.1 | Authenticate via Glassdoor login |
+| MOD-GD-001.2 | Search jobs with company ratings filter |
+| MOD-GD-001.3 | Extract company reviews and ratings |
+| MOD-GD-001.4 | Handle Easy Apply where available |
+| MOD-GD-001.5 | Navigate to external apply for non-Easy Apply |
+| MOD-GD-001.6 | Extract salary estimates from listings |
+| MOD-GD-001.7 | Track interview difficulty ratings |
+
+**References:**
+- [Apify Glassdoor Scraper](https://apify.com/canadesk/glassdoor-ziprecruiter/api)
+
+---
+
+### 16.5 ZipRecruiter Module
+
+#### MOD-ZR-001: ZipRecruiter Apply
+**Status:** Planned
+**Type:** Hybrid (API + Browser)
+**Source:** [ZipRecruiter Partner Documentation](https://www.ziprecruiter.com/partner/documentation/)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ZR-001.1 | Integrate with ZipRecruiter Partner API (where available) |
+| MOD-ZR-001.2 | Browser fallback for non-API flows |
+| MOD-ZR-001.3 | Handle One-Click Apply feature |
+| MOD-ZR-001.4 | Track applications via Apply Webhook |
+| MOD-ZR-001.5 | Sync job postings via Job API |
+| MOD-ZR-001.6 | Report hiring events back to ZipRecruiter |
+
+**References:**
+- [ZipRecruiter Partner Platform](https://www.ziprecruiter.com/partner/documentation/)
+- [ZipSearch API Program](https://www.ziprecruiter.com/zipsearch)
+- [ZipRecruiter APIs on RapidAPI](https://rapidapi.com/collection/ziprecruiter-api)
+
+---
+
+### 16.6 ATS Platform Modules
+
+#### MOD-ATS-001: Greenhouse ATS
+**Status:** Active
+**Type:** Browser Automation
+**Source:** [Greenhouse API](https://developers.greenhouse.io/)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ATS-001.1 | Detect Greenhouse job boards (*.greenhouse.io) |
+| MOD-ATS-001.2 | Navigate multi-page application forms |
+| MOD-ATS-001.3 | Handle custom screening questions |
+| MOD-ATS-001.4 | Upload resume and cover letter |
+| MOD-ATS-001.5 | Auto-fill standard fields via AI page analysis |
+| MOD-ATS-001.6 | Handle EEOC demographic questions (optional) |
+| MOD-ATS-001.7 | Submit and detect confirmation page |
+
+**References:**
+- [Greenhouse API Integration](https://developers.greenhouse.io/)
+- [Unified.to Multi-ATS API](https://unified.to/blog/how_to_build_a_job_board_that_connects_to_greenhouse_lever_and_60_ats_platforms_with_a_unified_api)
+
+#### MOD-ATS-002: Lever ATS
+**Status:** Active
+**Type:** Browser Automation
+**Source:** [Lever API](https://hire.lever.co/developer/documentation)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ATS-002.1 | Detect Lever job boards (jobs.lever.co/*) |
+| MOD-ATS-002.2 | Parse job listings from company pages |
+| MOD-ATS-002.3 | Navigate application forms |
+| MOD-ATS-002.4 | Handle custom fields via AI analysis |
+| MOD-ATS-002.5 | Upload required documents |
+| MOD-ATS-002.6 | Submit and verify confirmation |
+
+**References:**
+- [Lever Developer Documentation](https://hire.lever.co/developer/documentation)
+
+#### MOD-ATS-003: Workday ATS
+**Status:** Active
+**Type:** Browser Automation
+**Source:** [Workday API](https://www.getknit.dev/blog/workday-api-integration-in-depth)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-ATS-003.1 | Detect Workday career sites (*.myworkdayjobs.com) |
+| MOD-ATS-003.2 | Handle account creation if required |
+| MOD-ATS-003.3 | Parse resume into Workday profile format |
+| MOD-ATS-003.4 | Navigate complex multi-section forms |
+| MOD-ATS-003.5 | Handle work history, education entry |
+| MOD-ATS-003.6 | Answer screening questions |
+| MOD-ATS-003.7 | Submit and track application ID |
+
+**References:**
+- [Workday API Integration Guide](https://www.getknit.dev/blog/workday-api-integration-in-depth)
+- [Greenhouse-Workday Integration](https://kognitivinc.com/blog/integrating-greenhouse-ats-with-workday-kognitiv-faq/)
+
+---
+
+### 16.7 AI Job Discovery Module
+
+#### MOD-EXA-001: Exa Semantic Search
+**Status:** Active
+**Type:** API Integration
+**Source:** [Exa AI](https://exa.ai/)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-EXA-001.1 | Semantic search for job postings |
+| MOD-EXA-001.2 | Natural language queries ("senior react developer in NYC") |
+| MOD-EXA-001.3 | Content retrieval and parsing |
+| MOD-EXA-001.4 | Similar job recommendations |
+| MOD-EXA-001.5 | Company discovery by industry |
+| MOD-EXA-001.6 | Career page URL inference |
+| MOD-EXA-001.7 | Filter by date posted |
+
+---
+
+### 16.8 Generic Company Site Module
+
+#### MOD-DIRECT-001: AI-Powered Direct Apply
+**Status:** Active
+**Type:** Browser Automation with AI
+**Source:** Built-in
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-DIRECT-001.1 | Use Claude Vision to analyze any career page |
+| MOD-DIRECT-001.2 | Detect page type (listing, details, form, login) |
+| MOD-DIRECT-001.3 | Identify form fields and their purposes |
+| MOD-DIRECT-001.4 | Map profile data to form fields intelligently |
+| MOD-DIRECT-001.5 | Handle unknown field types via AI inference |
+| MOD-DIRECT-001.6 | Navigate multi-page application flows |
+| MOD-DIRECT-001.7 | Detect success/confirmation pages |
+| MOD-DIRECT-001.8 | Screenshot capture for debugging |
+
+**AI Analysis Capabilities:**
+- Visual screenshot analysis with Claude Vision
+- HTML structure parsing
+- Form field type detection
+- Job-profile matching scoring
+- Intelligent field value determination
+
+---
+
+### 16.9 Bot Detection Avoidance
+
+Based on research into browser automation detection methods:
+
+**Source:** [Playwright Stealth Guide](https://brightdata.com/blog/how-tos/avoid-bot-detection-with-playwright-stealth), [Detection Comparison](https://www.morelogin.com/blog/comparison-and-risk-analysis-of-automated-framework-detection)
+
+| Requirement | Details |
+|-------------|---------|
+| MOD-STEALTH-001 | Remove navigator.webdriver property |
+| MOD-STEALTH-002 | Remove "HeadlessChrome" from user-agent |
+| MOD-STEALTH-003 | Disable automation flags (--disable-blink-features=AutomationControlled) |
+| MOD-STEALTH-004 | Set realistic viewport dimensions |
+| MOD-STEALTH-005 | Randomize typing speed (30-150ms per character) |
+| MOD-STEALTH-006 | Add random delays between actions (200-500ms) |
+| MOD-STEALTH-007 | Simulate mouse movements (not just clicks) |
+| MOD-STEALTH-008 | Use playwright-stealth plugin evasion modules |
+| MOD-STEALTH-009 | Rotate user-agent strings periodically |
+| MOD-STEALTH-010 | Persist and reuse cookies/sessions |
+| MOD-STEALTH-011 | Avoid CDP detection patterns |
+| MOD-STEALTH-012 | Implement realistic scroll behavior |
+
+**References:**
+- [Making Playwright Undetectable](https://scrapeops.io/playwright-web-scraping-playbook/nodejs-playwright-make-playwright-undetectable/)
+- [CDP Detection Avoidance](https://substack.thewebscraping.club/p/playwright-stealth-cdp)
+- [Browserless Anti-Detection](https://www.browserless.io)
+
+---
+
+### 16.10 Rate Limiting Configuration
+
+Default rate limits per module (admin-configurable):
+
+| Module | Per Minute | Per Hour | Per Day | Delay (ms) |
+|--------|------------|----------|---------|------------|
+| LinkedIn | 10 | 50 | 200 | 2000-5000 |
+| Indeed | 8 | 40 | 150 | 2000-5000 |
+| Glassdoor | 6 | 30 | 100 | 3000-6000 |
+| ZipRecruiter | 8 | 40 | 150 | 2000-5000 |
+| Greenhouse | 15 | 100 | 500 | 1000-3000 |
+| Lever | 15 | 100 | 500 | 1000-3000 |
+| Workday | 10 | 60 | 300 | 2000-4000 |
+| Company Sites | 5 | 30 | 100 | 3000-8000 |
+
+---
+
+### 16.11 Module Database Schema
+
+```sql
+-- Module Registry
+CREATE TABLE modules (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  version VARCHAR(20),
+  platform VARCHAR(50),
+  type ENUM('browser', 'api', 'hybrid'),
+  status ENUM('enabled', 'disabled', 'beta', 'deprecated'),
+  config JSON,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  disabled_reason VARCHAR(50),
+  disabled_at TIMESTAMP,
+  disabled_by VARCHAR(50)
+);
+
+-- User Module Settings
+CREATE TABLE user_modules (
+  user_id VARCHAR(50),
+  module_id VARCHAR(50),
+  enabled BOOLEAN DEFAULT true,
+  config JSON,
+  priority INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, module_id),
+  FOREIGN KEY (module_id) REFERENCES modules(id)
+);
+
+-- Module Health Metrics
+CREATE TABLE module_health (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  module_id VARCHAR(50),
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  status ENUM('healthy', 'degraded', 'down'),
+  success_count INTEGER DEFAULT 0,
+  failure_count INTEGER DEFAULT 0,
+  avg_response_time INTEGER,
+  error_types JSON,
+  FOREIGN KEY (module_id) REFERENCES modules(id)
+);
+
+-- Module Audit Log
+CREATE TABLE module_audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  module_id VARCHAR(50),
+  action VARCHAR(50),
+  actor_id VARCHAR(50),
+  actor_type ENUM('admin', 'system', 'user'),
+  details JSON,
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (module_id) REFERENCES modules(id)
+);
+```
+
+---
+
+## 15. Testing Requirements
+
+### 15.1 Unit Testing
 
 | ID | Requirement | Details |
 |----|-------------|---------|
@@ -1182,7 +2124,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | TEST-UNIT-004 | Skill Normalization | Test skill matching algorithms |
 | TEST-UNIT-005 | Experience Parsing | Test experience year parsing |
 
-### 13.2 Integration Testing
+### 15.2 Integration Testing
 
 | ID | Requirement | Details |
 |----|-------------|---------|
@@ -1192,7 +2134,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | TEST-INT-004 | AI Integration | Test Claude API integration |
 | TEST-INT-005 | Job Discovery | Test Exa API integration |
 
-### 13.3 End-to-End Testing
+### 15.3 End-to-End Testing
 
 | ID | Requirement | Details |
 |----|-------------|---------|
@@ -1202,7 +2144,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | TEST-E2E-004 | Application Flow | Test application tracking |
 | TEST-E2E-005 | Auth Flow | Test signin/signout |
 
-### 13.4 Coverage Requirements
+### 15.4 Coverage Requirements
 
 | ID | Requirement | Target |
 |----|-------------|--------|
@@ -1212,9 +2154,9 @@ To create a comprehensive job search automation platform that reduces the time a
 
 ---
 
-## 14. Acceptance Criteria
+## 16. Acceptance Criteria
 
-### 14.1 Authentication Acceptance
+### 16.1 Authentication Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1224,7 +2166,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-AUTH-004 | Users can sign out completely | Manual test |
 | AC-AUTH-005 | Demo mode only works in development | Environment test |
 
-### 14.2 Profile Acceptance
+### 16.2 Profile Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1234,7 +2176,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-PROF-004 | Multiple profiles can be managed | Automated test |
 | AC-PROF-005 | Profile duplication works correctly | Automated test |
 
-### 14.3 Job Discovery Acceptance
+### 16.3 Job Discovery Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1243,7 +2185,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-DISC-003 | Job details are fully extracted | Automated test |
 | AC-DISC-004 | Easy-apply jobs are identified | Automated test |
 
-### 14.4 Job Matching Acceptance
+### 16.4 Job Matching Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1252,7 +2194,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-MATCH-003 | Fit categories are assigned correctly | Automated test |
 | AC-MATCH-004 | Recommendations are actionable | Manual review |
 
-### 14.5 Application Submission Acceptance
+### 16.5 Application Submission Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1262,7 +2204,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-SUB-004 | Resume upload works | E2E test |
 | AC-SUB-005 | Cover letters are generated | Automated test |
 
-### 14.6 Application Tracking Acceptance
+### 16.6 Application Tracking Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1271,7 +2213,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-TRACK-003 | Events are logged | Automated test |
 | AC-TRACK-004 | Notes can be added | Manual test |
 
-### 14.7 Analytics Acceptance
+### 16.7 Analytics Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1279,7 +2221,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-ANAL-002 | Charts display correctly | Visual test |
 | AC-ANAL-003 | Statistics are calculated correctly | Automated test |
 
-### 14.8 Automation Acceptance
+### 16.8 Automation Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1288,7 +2230,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-AUTO-003 | Sessions are logged | Automated test |
 | AC-AUTO-004 | Errors are captured | Automated test |
 
-### 14.9 Security Acceptance
+### 16.9 Security Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1297,7 +2239,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-SEC-003 | No sensitive data in logs | Code review |
 | AC-SEC-004 | Demo mode is disabled in production | Environment test |
 
-### 14.10 Performance Acceptance
+### 16.10 Performance Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1305,7 +2247,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-PERF-002 | API responses within 500ms | Performance test |
 | AC-PERF-003 | No memory leaks | Load test |
 
-### 14.11 CLI Acceptance
+### 16.11 CLI Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1315,7 +2257,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-CLI-004 | Configuration file is loaded correctly | Automated test |
 | AC-CLI-005 | Output formats work correctly (JSON, table) | Automated test |
 
-### 14.12 Data Export/Import Acceptance
+### 16.12 Data Export/Import Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1324,7 +2266,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-EXP-003 | Exported data can be re-imported | Automated test |
 | AC-EXP-004 | Import validates data before processing | Automated test |
 
-### 14.13 Compliance Acceptance
+### 16.13 Compliance Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1334,7 +2276,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-COMP-004 | Cookie consent is implemented | Manual test |
 | AC-COMP-005 | WCAG 2.1 AA compliance verified | Accessibility audit |
 
-### 14.14 Deployment Acceptance
+### 16.14 Deployment Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1346,9 +2288,9 @@ To create a comprehensive job search automation platform that reduces the time a
 
 ---
 
-## 15. Future Roadmap
+## 17. Future Roadmap
 
-### 15.1 Planned Features (High Priority)
+### 17.1 Planned Features (High Priority)
 
 | ID | Feature | Description |
 |----|---------|-------------|
@@ -1358,7 +2300,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | FUT-004 | Cover Letter Templates | Customizable cover letter templates |
 | FUT-005 | Bulk Operations | Bulk status updates on applications |
 
-### 15.2 Planned Features (Medium Priority)
+### 17.2 Planned Features (Medium Priority)
 
 | ID | Feature | Description |
 |----|---------|-------------|
@@ -1368,7 +2310,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | FUT-009 | Email Notifications | Email alerts for application updates |
 | FUT-010 | Calendar Integration | Interview scheduling integration |
 
-### 15.3 Planned Features (Low Priority)
+### 17.3 Planned Features (Low Priority)
 
 | ID | Feature | Description |
 |----|---------|-------------|
