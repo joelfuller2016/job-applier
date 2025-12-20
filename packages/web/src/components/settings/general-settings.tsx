@@ -24,8 +24,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { trpc } from '@/lib/trpc/react';
 
 const generalSettingsSchema = z.object({
   defaultKeywords: z.string().optional(),
@@ -51,34 +51,69 @@ const defaultValues: GeneralSettingsValues = {
 
 export function GeneralSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
+  const utils = trpc.useUtils();
+  const { data: settings } = trpc.settings.getSettings.useQuery();
 
   const form = useForm<GeneralSettingsValues>({
     resolver: zodResolver(generalSettingsSchema),
     defaultValues,
   });
 
-  const onSubmit = async (data: GeneralSettingsValues) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement tRPC mutation to save settings
-      // await trpc.settings.updateGeneral.mutate(data);
+  React.useEffect(() => {
+    if (!settings) return;
 
-      console.log('General settings:', data);
+    form.reset({
+      defaultKeywords: settings.preferences?.defaultKeywords ?? '',
+      defaultLocation: settings.preferences?.defaultLocation ?? '',
+      autoApplyEnabled: settings.preferences?.autoApply ?? false,
+      matchThreshold: settings.preferences?.minMatchScore ?? 70,
+      browserHeadless: settings.browser?.headless ?? true,
+      maxApplicationsPerDay: settings.rateLimit?.maxApplicationsPerDay ?? 10,
+      applicationDelay: Math.max(
+        1,
+        Math.round((settings.rateLimit?.minDelayBetweenActions ?? 5000) / 1000)
+      ),
+    });
+  }, [form, settings]);
 
+  const updateSettings = trpc.settings.updateSettings.useMutation({
+    onSuccess: async () => {
+      await utils.settings.getSettings.invalidate();
       toast({
         title: 'Settings saved',
         description: 'Your general settings have been updated successfully.',
       });
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         title: 'Error',
         description: 'Failed to save settings. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
-    }
+    },
+  });
+
+  const onSubmit = (data: GeneralSettingsValues) => {
+    const minDelayMs = data.applicationDelay * 1000;
+    const currentMaxDelay = settings?.rateLimit?.maxDelayBetweenActions ?? minDelayMs;
+    const maxDelayMs = Math.max(currentMaxDelay, minDelayMs);
+
+    updateSettings.mutate({
+      preferences: {
+        defaultKeywords: data.defaultKeywords ?? '',
+        defaultLocation: data.defaultLocation ?? '',
+        minMatchScore: data.matchThreshold,
+        autoApply: data.autoApplyEnabled,
+      },
+      browser: {
+        headless: data.browserHeadless,
+      },
+      rateLimit: {
+        maxApplicationsPerDay: data.maxApplicationsPerDay,
+        minDelayBetweenActions: minDelayMs,
+        maxDelayBetweenActions: maxDelayMs,
+      },
+    });
   };
 
   return (
@@ -258,8 +293,8 @@ export function GeneralSettings() {
               />
             </div>
 
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
+            <Button type="submit" disabled={updateSettings.isLoading}>
+              {updateSettings.isLoading ? 'Saving...' : 'Save Changes'}
             </Button>
           </form>
         </Form>

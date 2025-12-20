@@ -95,6 +95,8 @@ export const settingsRouter = router({
           console: z.boolean().optional(),
         }).optional(),
         preferences: z.object({
+          defaultKeywords: z.string().optional(),
+          defaultLocation: z.string().optional(),
           minMatchScore: z.number().optional(),
           autoApply: z.boolean().optional(),
           requireReview: z.boolean().optional(),
