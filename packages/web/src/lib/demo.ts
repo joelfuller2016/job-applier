@@ -28,6 +28,8 @@
  *
  * @example
  * ```typescript
+ * import { isDemoMode } from '@/lib/demo';
+ *
  * // Gate mock data behind demo mode check
  * const data = isDemoMode() ? mockData : [];
  *

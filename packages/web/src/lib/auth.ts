@@ -81,7 +81,7 @@ export const authOptions: AuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
-    // Demo credentials only available in non-production when explicitly enabled
+    // Demo credentials only available in development when explicitly enabled
     ...(isDemoAuthEnabled
       ? [
           CredentialsProvider({
@@ -91,7 +91,7 @@ export const authOptions: AuthOptions = {
               password: { label: 'Password', type: 'password' },
             },
             async authorize(credentials) {
-              // Validate demo credentials
+              // Validate demo credentials - password from environment
               if (
                 credentials?.email === 'demo@example.com' &&
                 credentials?.password === process.env.DEMO_PASSWORD
