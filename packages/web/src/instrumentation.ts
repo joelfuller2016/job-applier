@@ -62,6 +62,22 @@ async function validateProductionEnvironment(): Promise<void> {
       errors.push('GOOGLE_CLIENT_SECRET is required in production');
     }
 
+    // Required encryption variables for secure credential storage
+    // Without these, credential operations will fail at runtime
+    if (!process.env.CREDENTIALS_ENCRYPTION_KEY) {
+      errors.push(
+        'CREDENTIALS_ENCRYPTION_KEY is required in production - ' +
+        'generate with: openssl rand -base64 32'
+      );
+    }
+
+    if (!process.env.CREDENTIALS_ENCRYPTION_SALT) {
+      errors.push(
+        'CREDENTIALS_ENCRYPTION_SALT is required in production - ' +
+        'generate with: openssl rand -base64 16'
+      );
+    }
+
     // Warn about missing optional but recommended variables
     if (!process.env.ANTHROPIC_API_KEY) {
       console.warn('WARNING: ANTHROPIC_API_KEY not set - AI features will not work');
