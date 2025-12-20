@@ -29,11 +29,9 @@ declare module 'next-auth/jwt' {
 /**
  * Environment detection
  * isDevelopment: Only true for local development (NODE_ENV=development)
- * isProduction: True for production deployments (NODE_ENV=production)
  * Note: Staging/testing environments should set NODE_ENV appropriately
  */
 const isDevelopment = process.env.NODE_ENV === 'development';
-const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Check if demo auth is enabled and properly configured

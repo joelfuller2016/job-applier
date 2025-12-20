@@ -18,6 +18,9 @@ import { ANONYMOUS_USER_ID } from '../lib/constants';
  * - ioredis for Redis client
  * - Lua scripts for atomic operations
  * - Sorted sets for sliding window
+ *
+ * THREAD SAFETY: Node.js is single-threaded, so the check() method is inherently
+ * atomic within a single event loop tick. No additional synchronization needed.
  */
 class RateLimiter {
   private requests: Map<string, { count: number; windowStart: number }> = new Map();
@@ -29,6 +32,10 @@ class RateLimiter {
   ) {
     // Cleanup stale entries every 5 minutes to prevent memory leaks
     this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+    // Prevent the cleanup interval from keeping the process alive
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
   }
 
   check(key: string): { allowed: boolean; remaining: number; resetAt: number } {
