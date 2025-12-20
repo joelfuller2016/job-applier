@@ -1,6 +1,8 @@
 /**
  * Settings Router
  * Handles application settings and configuration
+ * 
+ * SECURITY: All mutations require authentication via protectedProcedure
  */
 
 import { z } from 'zod';
@@ -57,7 +59,7 @@ export const settingsRouter = router({
 
   /**
    * Update application settings
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication to prevent unauthorized config changes
    */
   updateSettings: protectedProcedure
     .input(
@@ -142,7 +144,7 @@ export const settingsRouter = router({
 
   /**
    * Reset settings to defaults
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication to prevent unauthorized resets
    */
   resetSettings: protectedProcedure
     .mutation(async ({ ctx }) => {
