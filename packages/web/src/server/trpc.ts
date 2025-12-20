@@ -18,9 +18,6 @@ import { ANONYMOUS_USER_ID } from '../lib/constants';
  * - ioredis for Redis client
  * - Lua scripts for atomic operations
  * - Sorted sets for sliding window
- *
- * THREAD SAFETY: Node.js is single-threaded, so the check() method is inherently
- * atomic within a single event loop tick. No additional synchronization needed.
  */
 class RateLimiter {
   private requests: Map<string, { count: number; windowStart: number }> = new Map();
@@ -32,7 +29,7 @@ class RateLimiter {
   ) {
     // Cleanup stale entries every 5 minutes to prevent memory leaks
     this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
-    // Prevent the cleanup interval from keeping the process alive
+    // Ensure cleanup interval does not prevent process exit
     if (this.cleanupInterval.unref) {
       this.cleanupInterval.unref();
     }
@@ -116,7 +113,7 @@ const t = initTRPC.context<Context>().create({
           stack: undefined,
         },
         // Sanitize the message for internal errors
-        message: error.code === 'INTERNAL_SERVER_ERROR'
+        message: shape.code === 'INTERNAL_SERVER_ERROR'
           ? 'An unexpected error occurred. Please try again later.'
           : shape.message,
       };
@@ -216,6 +213,14 @@ export const aiRateLimitedProcedure = t.procedure
   .use(aiRateLimitMiddleware);
 
 /**
+ * Admin user IDs - configurable via environment variable
+ * Format: comma-separated list of user IDs or 'default' for single-user mode
+ * Example: ADMIN_USER_IDS=user123,user456
+ * In single-user mode (not set), 'default' user has admin access
+ */
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || 'default').split(',').map(id => id.trim());
+
+/**
  * Admin middleware - checks for admin role
  */
 export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
@@ -226,7 +231,8 @@ export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  const isAdmin = (ctx as Context & { isAdmin?: boolean }).isAdmin === true;
+  // Check if user is in admin list
+  const isAdmin = ADMIN_USER_IDS.includes(ctx.userId);
 
   if (!isAdmin) {
     throw new TRPCError({

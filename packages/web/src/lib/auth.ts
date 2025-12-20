@@ -29,6 +29,7 @@ declare module 'next-auth/jwt' {
 /**
  * Environment detection
  * isDevelopment: Only true for local development (NODE_ENV=development)
+ * Note: Staging/testing/production environments (NODE_ENV=production)
  * Note: Staging/testing environments should set NODE_ENV appropriately
  */
 const isDevelopment = process.env.NODE_ENV === 'development';
