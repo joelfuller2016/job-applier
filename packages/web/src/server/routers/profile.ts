@@ -5,8 +5,9 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { UserProfileSchema, JobPreferencesSchema, ContactInfoSchema, SkillSchema, WorkExperienceSchema, EducationSchema, CertificationSchema, ProjectSchema } from '@job-applier/core';
+import { ANONYMOUS_USER_ID } from '../../lib/constants';
 
 /**
  * Extended profile schema with additional fields
@@ -26,8 +27,8 @@ export const profileRouter = router({
    */
   getCurrentProfile: publicProcedure
     .query(async ({ ctx }) => {
-      if (ctx.userId === 'default') {
-        // Legacy support: get default profile
+      if (ctx.userId === ANONYMOUS_USER_ID) {
+        // Anonymous users get the default profile (read-only)
         return ctx.profileRepository.getDefault();
       }
       return ctx.profileRepository.getDefaultForUser(ctx.userId);
@@ -48,12 +49,15 @@ export const profileRouter = router({
         });
       }
 
-      // Verify ownership if not default user
-      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have access to this profile',
-        });
+      // Verify ownership - allow read access to orphaned profiles only for anonymous users
+      if (ctx.userId !== ANONYMOUS_USER_ID) {
+        // Authenticated users can only access their own profiles
+        if (profile.userId && profile.userId !== ctx.userId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have access to this profile',
+          });
+        }
       }
 
       return profile;
@@ -64,7 +68,8 @@ export const profileRouter = router({
    */
   listProfiles: publicProcedure
     .query(async ({ ctx }) => {
-      if (ctx.userId === 'default') {
+      if (ctx.userId === ANONYMOUS_USER_ID) {
+        // Anonymous users can only see public/default profiles
         return ctx.profileRepository.findAll();
       }
       return ctx.profileRepository.findByUserId(ctx.userId);
@@ -72,18 +77,19 @@ export const profileRouter = router({
 
   /**
    * Create a new profile
+   * SECURITY: Requires authentication
    */
-  createProfile: publicProcedure
+  createProfile: protectedProcedure
     .input(ExtendedProfileInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.userId === 'default' ? undefined : ctx.userId;
-      return ctx.profileRepository.create(input, userId);
+      return ctx.profileRepository.create(input, ctx.userId);
     }),
 
   /**
    * Update existing profile
+   * SECURITY: Requires authentication
    */
-  updateProfile: publicProcedure
+  updateProfile: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -100,11 +106,18 @@ export const profileRouter = router({
         });
       }
 
-      // Verify ownership
-      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
+      // Verify ownership - orphaned profiles (no userId) cannot be modified
+      if (!profile.userId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
-          message: 'You do not have access to this profile',
+          message: 'This profile has no owner and cannot be modified. Please create a new profile.',
+        });
+      }
+
+      if (profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to modify this profile',
         });
       }
 
@@ -114,8 +127,9 @@ export const profileRouter = router({
 
   /**
    * Delete a profile
+   * SECURITY: Requires authentication
    */
-  deleteProfile: publicProcedure
+  deleteProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const profile = ctx.profileRepository.findById(input.id);
@@ -127,11 +141,18 @@ export const profileRouter = router({
         });
       }
 
-      // Verify ownership
-      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
+      // Verify ownership - orphaned profiles (no userId) cannot be deleted
+      if (!profile.userId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
-          message: 'You do not have access to this profile',
+          message: 'This profile has no owner and cannot be deleted. Contact an administrator.',
+        });
+      }
+
+      if (profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to delete this profile',
         });
       }
 
@@ -141,17 +162,11 @@ export const profileRouter = router({
 
   /**
    * Set a profile as default
+   * SECURITY: Requires authentication
    */
-  setDefaultProfile: publicProcedure
+  setDefaultProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.userId === 'default') {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Cannot set default profile without authentication',
-        });
-      }
-
       const profile = ctx.profileRepository.findById(input.id);
 
       if (!profile) {
@@ -539,7 +554,7 @@ export const profileRouter = router({
         profileData.firstName = `${profileData.firstName} (Copy)`;
       }
 
-      const newUserId = ctx.userId === 'default' ? undefined : ctx.userId;
+      const newUserId = ctx.userId === ANONYMOUS_USER_ID ? undefined : ctx.userId;
       return ctx.profileRepository.create(profileData, newUserId);
     }),
 });

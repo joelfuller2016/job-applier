@@ -10,40 +10,30 @@ const IV_LENGTH = 16;
 const KEY_LENGTH = 32;
 
 /**
- * Development-only fallback keys (NEVER use in production)
- */
-const DEV_FALLBACK_KEY = 'dev-only-encryption-key-not-for-production';
-const DEV_FALLBACK_SALT = 'dev-only-salt';
-
-/**
  * Get encryption key from environment
- * SECURITY: Encryption key MUST be provided via environment variable in production
- * In development, falls back to insecure defaults with a warning
+ * SECURITY: Requires environment variables to be set - no fallback defaults
  */
 function getEncryptionKey(): Buffer {
   const secret = process.env.CREDENTIALS_ENCRYPTION_KEY;
   const salt = process.env.CREDENTIALS_ENCRYPTION_SALT;
-  const isProduction = process.env.NODE_ENV === 'production';
 
-  if (!secret || !salt) {
-    if (isProduction) {
-      throw new Error(
-        'CREDENTIALS_ENCRYPTION_KEY and CREDENTIALS_ENCRYPTION_SALT environment variables are required in production. ' +
-        'Generate with: openssl rand -base64 32 (key) and openssl rand -base64 16 (salt)'
-      );
-    }
-
-    // Development fallback with warning
-    console.warn(
-      'WARNING: Using insecure development encryption keys. ' +
-      'Set CREDENTIALS_ENCRYPTION_KEY and CREDENTIALS_ENCRYPTION_SALT for production.'
+  if (!secret) {
+    throw new Error(
+      '[Credentials Configuration Error] CREDENTIALS_ENCRYPTION_KEY environment variable is required. ' +
+      'Without this key, the application cannot securely store or retrieve platform credentials (LinkedIn, Indeed, etc.). ' +
+      'Generate a secure key with: openssl rand -base64 32'
     );
   }
 
-  const effectiveSecret = secret || DEV_FALLBACK_KEY;
-  const effectiveSalt = salt || DEV_FALLBACK_SALT;
+  if (!salt) {
+    throw new Error(
+      '[Credentials Configuration Error] CREDENTIALS_ENCRYPTION_SALT environment variable is required. ' +
+      'Without this salt, the application cannot securely store or retrieve platform credentials. ' +
+      'Generate a secure salt with: openssl rand -base64 16'
+    );
+  }
 
-  return scryptSync(effectiveSecret, effectiveSalt, KEY_LENGTH);
+  return scryptSync(secret, salt, KEY_LENGTH);
 }
 
 /**
