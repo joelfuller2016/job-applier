@@ -85,6 +85,7 @@ export const authOptions: AuthOptions = {
     ...(isDemoAuthEnabled
       ? [
           CredentialsProvider({
+            id: 'demo-credentials',
             name: 'Demo Account',
             credentials: {
               email: { label: 'Email', type: 'email', placeholder: 'demo@example.com' },
