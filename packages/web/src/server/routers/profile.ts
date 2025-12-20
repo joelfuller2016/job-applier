@@ -19,6 +19,30 @@ const ExtendedProfileInputSchema = UserProfileSchema.omit({ id: true, createdAt:
 });
 
 /**
+ * Helper function to verify profile ownership
+ * SECURITY: Throws FORBIDDEN if user doesn't own the profile
+ */
+function verifyProfileOwnership(
+  profile: { userId?: string | null },
+  userId: string,
+  action: string = 'modify'
+) {
+  if (!profile.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: `This profile has no owner and cannot be ${action}ed.`,
+    });
+  }
+  if (profile.userId !== userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: `You do not have permission to ${action} this profile`,
+    });
+  }
+}
+
+
+/**
  * Profile router with CRUD operations
  */
 export const profileRouter = router({
@@ -189,7 +213,7 @@ export const profileRouter = router({
   /**
    * Update profile contact information
    */
-  updateContactInfo: publicProcedure
+  updateContactInfo: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -197,13 +221,18 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.id);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
       return ctx.profileRepository.update(input.id, { contact: input.contact });
     }),
 
   /**
    * Update profile job preferences
    */
-  updatePreferences: publicProcedure
+  updatePreferences: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -211,13 +240,18 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.id);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
       return ctx.profileRepository.update(input.id, { preferences: input.preferences });
     }),
 
   /**
    * Add a skill to profile
    */
-  addSkill: publicProcedure
+  addSkill: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -234,6 +268,15 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
+      // Ownership verified
+      if (false) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+        });
+      }
+
       const skills = [...(profile.skills || []), input.skill];
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
@@ -241,7 +284,7 @@ export const profileRouter = router({
   /**
    * Remove a skill from profile
    */
-  removeSkill: publicProcedure
+  removeSkill: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -258,6 +301,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const skills = (profile.skills || []).filter(s => s.name !== input.skillName);
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
@@ -265,7 +310,7 @@ export const profileRouter = router({
   /**
    * Add work experience
    */
-  addExperience: publicProcedure
+  addExperience: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -282,6 +327,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const experience = [...(profile.experience || []), input.experience];
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
@@ -289,7 +336,7 @@ export const profileRouter = router({
   /**
    * Update work experience
    */
-  updateExperience: publicProcedure
+  updateExperience: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -307,6 +354,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const experience = (profile.experience || []).map(exp =>
         exp.id === input.experienceId ? { ...exp, ...input.experience } : exp
       );
@@ -316,7 +365,7 @@ export const profileRouter = router({
   /**
    * Remove work experience
    */
-  removeExperience: publicProcedure
+  removeExperience: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -333,6 +382,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const experience = (profile.experience || []).filter(e => e.id !== input.experienceId);
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
@@ -340,7 +391,7 @@ export const profileRouter = router({
   /**
    * Add education
    */
-  addEducation: publicProcedure
+  addEducation: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -357,6 +408,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const education = [...(profile.education || []), input.education];
       return ctx.profileRepository.update(input.profileId, { education });
     }),
@@ -364,7 +417,7 @@ export const profileRouter = router({
   /**
    * Update education
    */
-  updateEducation: publicProcedure
+  updateEducation: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -382,6 +435,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const education = (profile.education || []).map(edu =>
         edu.id === input.educationId ? { ...edu, ...input.education } : edu
       );
@@ -391,7 +446,7 @@ export const profileRouter = router({
   /**
    * Remove education
    */
-  removeEducation: publicProcedure
+  removeEducation: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -408,6 +463,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const education = (profile.education || []).filter(e => e.id !== input.educationId);
       return ctx.profileRepository.update(input.profileId, { education });
     }),
@@ -415,7 +472,7 @@ export const profileRouter = router({
   /**
    * Add project
    */
-  addProject: publicProcedure
+  addProject: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -432,6 +489,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const projects = [...(profile.projects || []), input.project];
       return ctx.profileRepository.update(input.profileId, { projects });
     }),
@@ -439,7 +498,7 @@ export const profileRouter = router({
   /**
    * Add certification
    */
-  addCertification: publicProcedure
+  addCertification: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -456,6 +515,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
+
       const certifications = [...(profile.certifications || []), input.certification];
       return ctx.profileRepository.update(input.profileId, { certifications });
     }),
@@ -463,7 +524,7 @@ export const profileRouter = router({
   /**
    * Update resume content
    */
-  updateResumeContent: publicProcedure
+  updateResumeContent: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -472,6 +533,11 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
       return ctx.profileRepository.update(input.profileId, {
         resumeContent: input.resumeContent,
         resumePath: input.resumePath,
@@ -482,7 +548,7 @@ export const profileRouter = router({
   /**
    * Update cover letter template
    */
-  updateCoverLetterTemplate: publicProcedure
+  updateCoverLetterTemplate: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -490,6 +556,11 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId, 'modify');
       return ctx.profileRepository.update(input.profileId, {
         coverLetterTemplate: input.coverLetterTemplate,
       });
@@ -498,7 +569,7 @@ export const profileRouter = router({
   /**
    * Import resume and create/update profile
    */
-  importResume: publicProcedure
+  importResume: protectedProcedure
     .input(
       z.object({
         resumePath: z.string(),
@@ -515,6 +586,8 @@ export const profileRouter = router({
           });
         }
 
+        verifyProfileOwnership(profile, ctx.userId, 'modify');
+
         return ctx.profileRepository.update(input.profileId, {
           resumePath: input.resumePath,
           parsedAt: new Date().toISOString(),
@@ -530,7 +603,7 @@ export const profileRouter = router({
   /**
    * Duplicate a profile
    */
-  duplicateProfile: publicProcedure
+  duplicateProfile: protectedProcedure
     .input(z.object({ id: z.string(), newName: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const profile = ctx.profileRepository.findById(input.id);
@@ -541,6 +614,8 @@ export const profileRouter = router({
           message: `Profile with ID ${input.id} not found`,
         });
       }
+
+      verifyProfileOwnership(profile, ctx.userId, 'duplicate');
 
       // Create a copy of the profile
       const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile;
@@ -554,7 +629,6 @@ export const profileRouter = router({
         profileData.firstName = `${profileData.firstName} (Copy)`;
       }
 
-      const newUserId = ctx.userId === ANONYMOUS_USER_ID ? undefined : ctx.userId;
-      return ctx.profileRepository.create(profileData, newUserId);
+      return ctx.profileRepository.create(profileData, ctx.userId);
     }),
 });

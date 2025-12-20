@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 
 // Types
 const AutomationStatusSchema = z.object({
@@ -73,7 +73,7 @@ export const automationRouter = router({
   /**
    * Update automation configuration
    */
-  updateConfig: publicProcedure
+  updateConfig: protectedProcedure
     .input(AutomationConfigSchema.partial())
     .mutation(async ({ input }) => {
       // In a real implementation, this would save to config/database
@@ -83,7 +83,7 @@ export const automationRouter = router({
   /**
    * Start automation
    */
-  start: publicProcedure
+  start: protectedProcedure
     .input(
       z.object({
         platforms: z.array(z.enum(['linkedin', 'indeed'])),
@@ -104,7 +104,7 @@ export const automationRouter = router({
   /**
    * Stop automation
    */
-  stop: publicProcedure.mutation(async () => {
+  stop: protectedProcedure.mutation(async () => {
     // In a real implementation, this would stop the automation engine
     return {
       success: true,
@@ -115,7 +115,7 @@ export const automationRouter = router({
   /**
    * Pause automation
    */
-  pause: publicProcedure.mutation(async () => {
+  pause: protectedProcedure.mutation(async () => {
     // In a real implementation, this would pause the automation engine
     return {
       success: true,
@@ -126,7 +126,7 @@ export const automationRouter = router({
   /**
    * Resume automation
    */
-  resume: publicProcedure.mutation(async () => {
+  resume: protectedProcedure.mutation(async () => {
     // In a real implementation, this would resume the automation engine
     return {
       success: true,
