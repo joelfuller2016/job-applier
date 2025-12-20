@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 
 /**
@@ -32,7 +33,10 @@ export const huntRouter = router({
       // Get user profile
       const profile = ctx.profileRepository.findById(input.profileId);
       if (!profile) {
-        throw new Error(`Profile with ID ${input.profileId} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.profileId} not found`,
+        });
       }
 
       // Start hunt (this will be long-running, consider making it async with status tracking)
@@ -84,7 +88,10 @@ export const huntRouter = router({
       // Get user profile
       const profile = ctx.profileRepository.findById(input.profileId);
       if (!profile) {
-        throw new Error(`Profile with ID ${input.profileId} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.profileId} not found`,
+        });
       }
 
       const result = await ctx.orchestrator.quickApply(
