@@ -166,9 +166,10 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
-   * SECURITY: Requires authentication (contains system paths)
+   * SECURITY: Requires ADMIN access - exposes internal server file system paths
+   * This information could be used by attackers to understand server structure
    */
-  getDataPaths: protectedProcedure
+  getDataPaths: adminProcedure
     .query(async ({ ctx }) => {
       return {
         dataDir: ctx.configManager.getDataDir(),
