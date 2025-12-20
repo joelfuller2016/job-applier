@@ -28,38 +28,46 @@ declare module 'next-auth/jwt' {
 
 /**
  * Environment detection
+ * isDevelopment: Only true for local development (NODE_ENV=development)
+ * isProduction: True for production deployments (NODE_ENV=production)
+ * Note: Staging/testing environments should set NODE_ENV appropriately
  */
+const isDevelopment = process.env.NODE_ENV === 'development';
 const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Check if demo auth is enabled and properly configured
+ * Demo auth is ONLY available in development mode, never in production or staging
  */
-const isDemoAuthEnabled = !isProduction && process.env.ENABLE_DEMO_AUTH === 'true';
+const isDemoAuthEnabled = isDevelopment && process.env.ENABLE_DEMO_AUTH === 'true';
 
 /**
  * Validate required environment variables
+ * Called at module load to fail fast on misconfiguration
  * @throws Error if configuration is invalid
  */
 function validateAuthConfig(): void {
-  // Production requires NEXTAUTH_SECRET
-  if (isProduction && !process.env.NEXTAUTH_SECRET) {
+  // NEXTAUTH_SECRET is required in all non-development environments
+  // This includes production, staging, testing, and any other deployment
+  if (!isDevelopment && !process.env.NEXTAUTH_SECRET) {
     throw new Error(
-      'NEXTAUTH_SECRET environment variable is required in production. ' +
-      'Generate one with: openssl rand -base64 32'
+      '[Auth Configuration Error] NEXTAUTH_SECRET environment variable is required. ' +
+      'This error occurs during module initialization. ' +
+      'Generate a secure secret with: openssl rand -base64 32'
     );
   }
 
   // Demo auth requires DEMO_PASSWORD when enabled
   if (isDemoAuthEnabled && !process.env.DEMO_PASSWORD) {
     throw new Error(
-      'DEMO_PASSWORD environment variable is required when ENABLE_DEMO_AUTH=true. ' +
+      '[Auth Configuration Error] DEMO_PASSWORD environment variable is required when ENABLE_DEMO_AUTH=true. ' +
       'Set a secure password in your .env file.'
     );
   }
 
   // Warn about demo auth in development (once at startup, not per-auth)
   if (isDemoAuthEnabled) {
-    console.warn('[AUTH] Demo authentication is ENABLED - DO NOT use in production');
+    console.warn('[AUTH] Demo authentication is ENABLED - this feature is only available in development mode');
   }
 }
 
@@ -129,6 +137,6 @@ export const authOptions: AuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // SECURITY: Secret is validated in validateAuthConfig() - fallback only for non-production
-  secret: process.env.NEXTAUTH_SECRET || (!isProduction ? 'dev-only-secret-not-for-production' : undefined),
+  // SECURITY: Secret is validated in validateAuthConfig() - fallback only for local development
+  secret: process.env.NEXTAUTH_SECRET || (isDevelopment ? 'dev-only-secret-not-for-production' : undefined),
 };

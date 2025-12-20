@@ -19,14 +19,16 @@ function getEncryptionKey(): Buffer {
 
   if (!secret) {
     throw new Error(
-      'CREDENTIALS_ENCRYPTION_KEY environment variable is required. ' +
+      '[Credentials Configuration Error] CREDENTIALS_ENCRYPTION_KEY environment variable is required. ' +
+      'Without this key, the application cannot securely store or retrieve platform credentials (LinkedIn, Indeed, etc.). ' +
       'Generate a secure key with: openssl rand -base64 32'
     );
   }
 
   if (!salt) {
     throw new Error(
-      'CREDENTIALS_ENCRYPTION_SALT environment variable is required. ' +
+      '[Credentials Configuration Error] CREDENTIALS_ENCRYPTION_SALT environment variable is required. ' +
+      'Without this salt, the application cannot securely store or retrieve platform credentials. ' +
       'Generate a secure salt with: openssl rand -base64 16'
     );
   }
