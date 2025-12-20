@@ -16,10 +16,14 @@ import { JobSearchQuery } from '@job-applier/core';
  * Verify that the current user has permission to modify a job
  * Users can only modify jobs they have applications for
  *
+ * Note: This function is synchronous as all repository methods are sync.
+ * Database errors are caught and converted to TRPCErrors.
+ *
  * @throws TRPCError NOT_FOUND if job or profile doesn't exist
  * @throws TRPCError FORBIDDEN if user has no application for the job
+ * @throws TRPCError INTERNAL_SERVER_ERROR if database operation fails
  */
-async function verifyJobAccess(
+function verifyJobAccess(
   ctx: {
     profileRepository: {
       getDefaultForUser: (userId: string) => { id: string; userId?: string | null } | null;
@@ -34,34 +38,47 @@ async function verifyJobAccess(
   },
   jobId: string
 ) {
-  // Verify job exists
-  const job = ctx.jobRepository.findById(jobId);
-  if (!job) {
+  try {
+    // Verify job exists
+    const job = ctx.jobRepository.findById(jobId);
+    if (!job) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'Job not found',
+      });
+    }
+
+    // Get user's profile
+    const profile = ctx.profileRepository.getDefaultForUser(ctx.userId);
+    if (!profile) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'User profile not found. Please create a profile first.',
+      });
+    }
+
+    // Check if user has applied to this job
+    const hasApplied = ctx.applicationRepository.hasApplied(profile.id, jobId);
+    if (!hasApplied) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'You can only modify jobs you have applied to',
+      });
+    }
+
+    return { job, profile };
+  } catch (error) {
+    // Re-throw TRPCErrors as-is
+    if (error instanceof TRPCError) {
+      throw error;
+    }
+    // Wrap database errors in TRPCError
     throw new TRPCError({
-      code: 'NOT_FOUND',
-      message: 'Job not found',
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Failed to verify job access. Please try again.',
+      cause: error,
     });
   }
-
-  // Get user's profile
-  const profile = ctx.profileRepository.getDefaultForUser(ctx.userId);
-  if (!profile) {
-    throw new TRPCError({
-      code: 'NOT_FOUND',
-      message: 'User profile not found. Please create a profile first.',
-    });
-  }
-
-  // Check if user has applied to this job
-  const hasApplied = ctx.applicationRepository.hasApplied(profile.id, jobId);
-  if (!hasApplied) {
-    throw new TRPCError({
-      code: 'FORBIDDEN',
-      message: 'You can only modify jobs you have applied to',
-    });
-  }
-
-  return { job, profile };
 }
 
 /**
@@ -151,14 +168,15 @@ export const jobsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // Verify user has permission to modify this job
-      await verifyJobAccess(ctx, input.id);
+      verifyJobAccess(ctx, input.id);
 
       const updated = ctx.jobRepository.update(input.id, input.updates);
 
+      // Race condition: job could be deleted between verify and update
       if (!updated) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to update job',
+          code: 'NOT_FOUND',
+          message: 'Job not found. It may have been deleted.',
         });
       }
 
@@ -173,14 +191,15 @@ export const jobsRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       // Verify user has permission to delete this job
-      await verifyJobAccess(ctx, input.id);
+      verifyJobAccess(ctx, input.id);
 
       const deleted = ctx.jobRepository.delete(input.id);
 
+      // Race condition: job could be deleted between verify and delete
       if (!deleted) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to delete job',
+          code: 'NOT_FOUND',
+          message: 'Job not found. It may have been deleted.',
         });
       }
 
