@@ -165,6 +165,51 @@ export const SCHEMA = {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `,
+
+  /**
+   * Automation sessions table
+   * Stores automation and hunt session state for persistence across restarts
+   * SECURITY FIX: Replaces in-memory Map storage that caused data loss
+   * See: https://github.com/joelfuller2016/job-applier/issues/37
+   */
+  automation_sessions: `
+    CREATE TABLE IF NOT EXISTS automation_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('automation', 'hunt')),
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused', 'stopped', 'completed', 'error')),
+      cancel_requested INTEGER DEFAULT 0,
+      config TEXT NOT NULL,
+      stats TEXT NOT NULL DEFAULT '{}',
+      current_task TEXT,
+      progress INTEGER DEFAULT 0,
+      total_items INTEGER DEFAULT 0,
+      processed_items INTEGER DEFAULT 0,
+      error_message TEXT,
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      last_activity_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `,
+
+  /**
+   * Session logs table
+   * Stores logs for automation sessions
+   */
+  session_logs: `
+    CREATE TABLE IF NOT EXISTS session_logs (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      level TEXT NOT NULL CHECK(level IN ('debug', 'info', 'warn', 'error')),
+      message TEXT NOT NULL,
+      context TEXT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (session_id) REFERENCES automation_sessions(id) ON DELETE CASCADE
+    )
+  `,
 };
 
 export const INDEXES = {
@@ -183,6 +228,12 @@ export const INDEXES = {
   matches_score: 'CREATE INDEX IF NOT EXISTS idx_matches_score ON job_matches(overall_score)',
   events_application: 'CREATE INDEX IF NOT EXISTS idx_events_application ON application_events(application_id)',
   events_timestamp: 'CREATE INDEX IF NOT EXISTS idx_events_timestamp ON application_events(timestamp)',
+  // Session indexes
+  sessions_user: 'CREATE INDEX IF NOT EXISTS idx_sessions_user ON automation_sessions(user_id)',
+  sessions_status: 'CREATE INDEX IF NOT EXISTS idx_sessions_status ON automation_sessions(status)',
+  sessions_type: 'CREATE INDEX IF NOT EXISTS idx_sessions_type ON automation_sessions(type)',
+  session_logs_session: 'CREATE INDEX IF NOT EXISTS idx_session_logs_session ON session_logs(session_id)',
+  session_logs_timestamp: 'CREATE INDEX IF NOT EXISTS idx_session_logs_timestamp ON session_logs(timestamp)',
 };
 
 export const TRIGGERS = {
@@ -212,6 +263,13 @@ export const TRIGGERS = {
     AFTER UPDATE ON applications
     BEGIN
       UPDATE applications SET updated_at = datetime('now') WHERE id = NEW.id;
+    END
+  `,
+  sessions_updated: `
+    CREATE TRIGGER IF NOT EXISTS trigger_sessions_updated
+    AFTER UPDATE ON automation_sessions
+    BEGIN
+      UPDATE automation_sessions SET updated_at = datetime('now') WHERE id = NEW.id;
     END
   `,
 };
