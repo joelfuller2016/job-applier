@@ -18,7 +18,9 @@ const nextConfig = {
     '@job-applier/resume-parser',
   ],
   experimental: {
-    serverComponentsExternalPackages: ['better-sqlite3'],
+    // sql.js is bundled, no need to externalize
+    // Removed incorrect better-sqlite3 reference (project uses sql.js)
+    serverComponentsExternalPackages: [],
     instrumentationHook: true,
   },
   webpack: (config, { isServer }) => {
