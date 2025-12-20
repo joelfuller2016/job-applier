@@ -47,6 +47,16 @@ const isDemoAuthEnabled = isDevelopment && process.env.ENABLE_DEMO_AUTH === 'tru
  * @throws Error if configuration is invalid
  */
 function validateAuthConfig(): void {
+  // SECURITY: Prevent DEMO_PASSWORD from being exposed via NEXT_PUBLIC_ prefix
+  // Next.js exposes all NEXT_PUBLIC_* variables to the client, which would be a critical security issue
+  if (process.env.NEXT_PUBLIC_DEMO_PASSWORD) {
+    throw new Error(
+      '[Auth Configuration Error] NEXT_PUBLIC_DEMO_PASSWORD is not allowed. ' +
+      'DEMO_PASSWORD must NOT use the NEXT_PUBLIC_ prefix as it would expose the password to the client. ' +
+      'Use DEMO_PASSWORD (without NEXT_PUBLIC_) instead.'
+    );
+  }
+
   // NEXTAUTH_SECRET is required in all non-development environments
   // This includes production, staging, testing, and any other deployment
   if (!isDevelopment && !process.env.NEXTAUTH_SECRET) {
