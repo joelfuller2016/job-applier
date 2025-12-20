@@ -1,11 +1,14 @@
 /**
  * Hunt Router
  * Handles job hunting orchestration
+ * 
+ * SECURITY: Uses expensive rate limiting for AI-powered operations
+ * See: https://github.com/joelfuller2016/job-applier/issues/18
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure, expensiveProcedure, aiRateLimitedProcedure } from '../trpc';
 
 /**
  * Hunt router for automated job hunting
@@ -13,9 +16,10 @@ import { router, publicProcedure, protectedProcedure } from '../trpc';
 export const huntRouter = router({
   /**
    * Start a new job hunt
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + expensive rate limiting (3 per 5 min)
+   * This endpoint calls multiple AI APIs (Claude + Exa) and is very expensive
    */
-  startHunt: protectedProcedure
+  startHunt: expensiveProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -77,9 +81,10 @@ export const huntRouter = router({
 
   /**
    * Quick apply to a specific company/job
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + AI rate limiting (10 per min)
+   * Uses AI for job matching and application
    */
-  quickApply: protectedProcedure
+  quickApply: aiRateLimitedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -114,8 +119,9 @@ export const huntRouter = router({
 
   /**
    * Get hunt status (placeholder for future WebSocket/polling implementation)
+   * SECURITY: Requires authentication
    */
-  getHuntStatus: publicProcedure
+  getHuntStatus: protectedProcedure
     .input(z.object({ sessionId: z.string() }))
     .query(async ({ input }) => {
       // TODO: Implement hunt status tracking
@@ -129,8 +135,9 @@ export const huntRouter = router({
 
   /**
    * Get recent hunt sessions
+   * SECURITY: Requires authentication
    */
-  getRecentHunts: publicProcedure
+  getRecentHunts: protectedProcedure
     .input(
       z.object({
         profileId: z.string().optional(),
