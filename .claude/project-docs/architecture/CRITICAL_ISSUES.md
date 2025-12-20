@@ -155,10 +155,16 @@ class ApplicationRepository {
 8-12 hours (requires updating all repositories and routers)
 
 ### Acceptance Criteria
-- [ ] All queries filtered by userId
-- [ ] Users cannot access other users' data
-- [ ] Proper 403 errors for unauthorized access
+- [x] All queries filtered by userId (profile router - PR #48 pending)
+- [x] Users cannot access other users' data (profile router - PR #48 pending)
+- [x] Proper 403 errors for unauthorized access (profile router - PR #48 pending)
 - [ ] Tests verify isolation between users
+
+### Progress
+- **2025-12-20**: Profile router security fix (PR #48 pending)
+  - `listProfiles` now requires authentication (`protectedProcedure`)
+  - `getProfile` properly restricts anonymous access to orphaned profiles only
+  - Anonymous users can no longer enumerate all profiles or access user-owned profiles
 
 ---
 
