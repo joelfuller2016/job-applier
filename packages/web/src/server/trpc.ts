@@ -1,9 +1,9 @@
 /**
  * tRPC Initialization
- * Core tRPC setup with context and middleware
+ * Core tRPC setup with context, middleware, and authentication
  */
 
-import { initTRPC } from '@trpc/server';
+import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import type { Context } from '../lib/trpc/server';
@@ -32,6 +32,34 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 /**
+ * Middleware for authentication
+ * Ensures user is authenticated before proceeding
+ */
+export const authMiddleware = t.middleware(async ({ ctx, next }) => {
+  // Check if user is authenticated (not using default/anonymous user)
+  if (!ctx.userId || ctx.userId === 'default') {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'You must be logged in to perform this action',
+    });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      // Narrow the type to ensure userId is defined and not 'default'
+      userId: ctx.userId as string,
+    },
+  });
+});
+
+/**
+ * Protected procedure - requires authentication
+ * Use this for any endpoint that modifies user data or accesses sensitive info
+ */
+export const protectedProcedure = t.procedure.use(authMiddleware);
+
+/**
  * Middleware for logging (optional)
  */
 export const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
@@ -52,3 +80,8 @@ export const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
  * Logged procedure (with timing)
  */
 export const loggedProcedure = publicProcedure.use(loggerMiddleware);
+
+/**
+ * Protected + Logged procedure
+ */
+export const protectedLoggedProcedure = protectedProcedure.use(loggerMiddleware);

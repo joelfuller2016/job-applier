@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { UserProfileSchema, JobPreferencesSchema, ContactInfoSchema, SkillSchema, WorkExperienceSchema, EducationSchema, CertificationSchema, ProjectSchema } from '@job-applier/core';
 
 /**
@@ -72,18 +72,19 @@ export const profileRouter = router({
 
   /**
    * Create a new profile
+   * SECURITY: Requires authentication
    */
-  createProfile: publicProcedure
+  createProfile: protectedProcedure
     .input(ExtendedProfileInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.userId === 'default' ? undefined : ctx.userId;
-      return ctx.profileRepository.create(input, userId);
+      return ctx.profileRepository.create(input, ctx.userId);
     }),
 
   /**
    * Update existing profile
+   * SECURITY: Requires authentication
    */
-  updateProfile: publicProcedure
+  updateProfile: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -101,7 +102,7 @@ export const profileRouter = router({
       }
 
       // Verify ownership
-      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
+      if (profile.userId && profile.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'You do not have access to this profile',
@@ -114,8 +115,9 @@ export const profileRouter = router({
 
   /**
    * Delete a profile
+   * SECURITY: Requires authentication
    */
-  deleteProfile: publicProcedure
+  deleteProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const profile = ctx.profileRepository.findById(input.id);
@@ -128,7 +130,7 @@ export const profileRouter = router({
       }
 
       // Verify ownership
-      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
+      if (profile.userId && profile.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'You do not have access to this profile',
@@ -141,17 +143,11 @@ export const profileRouter = router({
 
   /**
    * Set a profile as default
+   * SECURITY: Requires authentication
    */
-  setDefaultProfile: publicProcedure
+  setDefaultProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.userId === 'default') {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Cannot set default profile without authentication',
-        });
-      }
-
       const profile = ctx.profileRepository.findById(input.id);
 
       if (!profile) {

@@ -10,12 +10,27 @@ const IV_LENGTH = 16;
 const KEY_LENGTH = 32;
 
 /**
- * Get encryption key from environment or generate default
- * In production, this should be a securely stored secret
+ * Get encryption key from environment
+ * SECURITY: Requires environment variables to be set - no fallback defaults
  */
 function getEncryptionKey(): Buffer {
-  const secret = process.env.CREDENTIALS_ENCRYPTION_KEY || 'job-applier-default-key-change-me';
-  const salt = process.env.CREDENTIALS_ENCRYPTION_SALT || 'job-applier-salt';
+  const secret = process.env.CREDENTIALS_ENCRYPTION_KEY;
+  const salt = process.env.CREDENTIALS_ENCRYPTION_SALT;
+
+  if (!secret) {
+    throw new Error(
+      'CREDENTIALS_ENCRYPTION_KEY environment variable is required. ' +
+      'Generate a secure key with: openssl rand -base64 32'
+    );
+  }
+
+  if (!salt) {
+    throw new Error(
+      'CREDENTIALS_ENCRYPTION_SALT environment variable is required. ' +
+      'Generate a secure salt with: openssl rand -base64 16'
+    );
+  }
+
   return scryptSync(secret, salt, KEY_LENGTH);
 }
 

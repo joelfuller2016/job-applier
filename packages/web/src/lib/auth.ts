@@ -26,6 +26,26 @@ declare module 'next-auth/jwt' {
   }
 }
 
+/**
+ * Check if we're in development mode
+ */
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+/**
+ * Validate required environment variables
+ */
+function validateAuthConfig(): void {
+  if (!isDevelopment && !process.env.NEXTAUTH_SECRET) {
+    throw new Error(
+      'NEXTAUTH_SECRET environment variable is required in production. ' +
+      'Generate one with: openssl rand -base64 32'
+    );
+  }
+}
+
+// Validate on module load
+validateAuthConfig();
+
 export const authOptions: AuthOptions = {
   providers: [
     // Google OAuth Provider
@@ -33,29 +53,34 @@ export const authOptions: AuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
-    // Email/Password Provider (for demo/development)
-    CredentialsProvider({
-      name: 'Demo Account',
-      credentials: {
-        email: { label: 'Email', type: 'email', placeholder: 'demo@example.com' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        // Demo account for development/testing
-        if (
-          credentials?.email === 'demo@example.com' &&
-          credentials?.password === 'demo123'
-        ) {
-          return {
-            id: 'demo-user-id',
-            name: 'Demo User',
-            email: 'demo@example.com',
-            image: null,
-          };
-        }
-        return null;
-      },
-    }),
+    // Demo credentials only available in development mode
+    ...(isDevelopment && process.env.ENABLE_DEMO_AUTH === 'true'
+      ? [
+          CredentialsProvider({
+            name: 'Demo Account',
+            credentials: {
+              email: { label: 'Email', type: 'email', placeholder: 'demo@example.com' },
+              password: { label: 'Password', type: 'password' },
+            },
+            async authorize(credentials) {
+              // Demo account ONLY for development/testing when explicitly enabled
+              console.warn('[AUTH] Demo authentication used - DO NOT use in production');
+              if (
+                credentials?.email === 'demo@example.com' &&
+                credentials?.password === process.env.DEMO_PASSWORD
+              ) {
+                return {
+                  id: 'demo-user-id',
+                  name: 'Demo User',
+                  email: 'demo@example.com',
+                  image: null,
+                };
+              }
+              return null;
+            },
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     async jwt({ token, user, account }) {
@@ -85,5 +110,6 @@ export const authOptions: AuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET || 'development-secret-change-in-production',
+  // SECURITY: Secret is validated in validateAuthConfig() - fallback only for development
+  secret: process.env.NEXTAUTH_SECRET || (isDevelopment ? 'dev-only-secret-not-for-production' : undefined),
 };
