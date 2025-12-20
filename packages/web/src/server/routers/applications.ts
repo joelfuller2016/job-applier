@@ -18,16 +18,17 @@ export const applicationsRouter = router({
     .input(
       z.object({
         profileId: z.string().optional(),
+        // Must match ApplicationStatusSchema from @job-applier/core
         status: z.enum([
           'draft',
-          'pending',
           'submitted',
-          'reviewing',
-          'interviewing',
-          'offered',
-          'accepted',
+          'viewed',
+          'in-review',
+          'interview',
+          'offer',
           'rejected',
           'withdrawn',
+          'expired',
           'error',
         ] as const).optional(),
       })
@@ -85,16 +86,17 @@ export const applicationsRouter = router({
     .input(
       z.object({
         id: z.string(),
+        // Must match ApplicationStatusSchema from @job-applier/core
         status: z.enum([
           'draft',
-          'pending',
           'submitted',
-          'reviewing',
-          'interviewing',
-          'offered',
-          'accepted',
+          'viewed',
+          'in-review',
+          'interview',
+          'offer',
           'rejected',
           'withdrawn',
+          'expired',
           'error',
         ] as const),
         details: z.string().optional(),

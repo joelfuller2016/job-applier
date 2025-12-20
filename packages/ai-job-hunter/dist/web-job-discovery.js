@@ -3,6 +3,7 @@
  * Uses Exa semantic search and web scraping to find jobs
  */
 import { Exa } from 'exa-js';
+import { createHash } from 'crypto';
 import { getConfigManager } from '@job-applier/config';
 import { AIPageAnalyzer } from './ai-page-analyzer.js';
 export class WebJobDiscovery {
@@ -355,8 +356,7 @@ export class WebJobDiscovery {
      * Generate unique job ID from URL
      */
     generateJobId(url) {
-        const crypto = require('crypto');
-        return crypto.createHash('md5').update(url).digest('hex').slice(0, 12);
+        return createHash('md5').update(url).digest('hex').slice(0, 12);
     }
 }
 //# sourceMappingURL=web-job-discovery.js.map

@@ -84,12 +84,13 @@ export function createSearchCommand(): Command {
           const job = jobMap.get(match.jobId);
           if (!job) continue;
 
-          const scoreColor = match.overallScore >= 0.8 ? chalk.green :
-            match.overallScore >= 0.6 ? chalk.yellow : chalk.red;
+          // overallScore is already 0-100 scale
+          const scoreColor = match.overallScore >= 80 ? chalk.green :
+            match.overallScore >= 60 ? chalk.yellow : chalk.red;
 
           table.push([
             (i + 1).toString(),
-            scoreColor(`${Math.round(match.overallScore * 100)}%`),
+            scoreColor(`${Math.round(match.overallScore)}%`),
             job.title.substring(0, 28),
             job.company.name.substring(0, 18),
             job.location.substring(0, 18),
@@ -108,8 +109,9 @@ export function createSearchCommand(): Command {
           if (!job) continue;
 
           console.log(chalk.bold(`${i + 1}. ${job.title} at ${job.company.name}`));
-          console.log(`   Match Score: ${chalk.green(Math.round(match.overallScore) + '%')}`);
-          console.log(`   Skills: ${chalk.green(Math.round(match.skillScore) + '%')} | Experience: ${chalk.green(Math.round(match.experienceScore) + '%')}`);
+          // Scores are already 0-100 scale
+          console.log(`   Match Score: ${chalk.green(match.overallScore + '%')}`);
+          console.log(`   Skills: ${chalk.green(match.skillScore + '%')} | Experience: ${chalk.green(match.experienceScore + '%')}`);
 
           const matchedSkills = match.skillMatches.filter(sm => sm.userHas).map(sm => sm.skill);
           const missingSkills = match.skillMatches.filter(sm => !sm.userHas).map(sm => sm.skill);
