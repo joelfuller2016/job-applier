@@ -18,9 +18,11 @@
 8. [Integration Requirements](#8-integration-requirements)
 9. [Data Requirements](#9-data-requirements)
 10. [Performance Requirements](#10-performance-requirements)
-11. [Testing Requirements](#11-testing-requirements)
-12. [Acceptance Criteria](#12-acceptance-criteria)
-13. [Future Roadmap](#13-future-roadmap)
+11. [Deployment & Operations Requirements](#11-deployment--operations-requirements)
+12. [Compliance & Legal Requirements](#12-compliance--legal-requirements)
+13. [Testing Requirements](#13-testing-requirements)
+14. [Acceptance Criteria](#14-acceptance-criteria)
+15. [Future Roadmap](#15-future-roadmap)
 
 ---
 
@@ -537,6 +539,119 @@ To create a comprehensive job search automation platform that reduces the time a
 
 ---
 
+### 3.11 Command Line Interface (CLI)
+
+#### FR-CLI-001: CLI Commands
+**Priority:** Medium
+**Description:** System must provide a command-line interface for power users.
+
+| Requirement | Details |
+|------------|---------|
+| FR-CLI-001.1 | Support job search from command line |
+| FR-CLI-001.2 | Support profile management via CLI |
+| FR-CLI-001.3 | Support application submission via CLI |
+| FR-CLI-001.4 | Support status checking via CLI |
+| FR-CLI-001.5 | Provide interactive mode for complex operations |
+| FR-CLI-001.6 | Support batch operations for multiple jobs |
+| FR-CLI-001.7 | Provide verbose/quiet output modes |
+
+#### FR-CLI-002: CLI Configuration
+**Priority:** Medium
+**Description:** CLI must support configuration management.
+
+| Requirement | Details |
+|------------|---------|
+| FR-CLI-002.1 | Support configuration file loading |
+| FR-CLI-002.2 | Support environment variable overrides |
+| FR-CLI-002.3 | Provide config validation command |
+| FR-CLI-002.4 | Support multiple output formats (JSON, table, plain) |
+
+---
+
+### 3.12 Notifications & Alerts
+
+#### FR-NOTIF-001: In-App Notifications
+**Priority:** Medium
+**Description:** System must provide real-time in-app notifications.
+
+| Requirement | Details |
+|------------|---------|
+| FR-NOTIF-001.1 | Display toast notifications for important events |
+| FR-NOTIF-001.2 | Show notification badge for unread items |
+| FR-NOTIF-001.3 | Provide notification history/feed |
+| FR-NOTIF-001.4 | Allow dismissing/clearing notifications |
+| FR-NOTIF-001.5 | Support notification preferences per type |
+
+#### FR-NOTIF-002: Real-Time Updates
+**Priority:** Medium
+**Description:** System must provide real-time updates via WebSocket.
+
+| Requirement | Details |
+|------------|---------|
+| FR-NOTIF-002.1 | Push hunt progress updates in real-time |
+| FR-NOTIF-002.2 | Push application status changes |
+| FR-NOTIF-002.3 | Push automation status updates |
+| FR-NOTIF-002.4 | Handle connection drops gracefully |
+| FR-NOTIF-002.5 | Support reconnection with state recovery |
+
+---
+
+### 3.13 Data Export & Backup
+
+#### FR-EXPORT-001: Data Export
+**Priority:** Medium
+**Description:** Users must be able to export their data.
+
+| Requirement | Details |
+|------------|---------|
+| FR-EXPORT-001.1 | Export profile data as JSON |
+| FR-EXPORT-001.2 | Export application history as CSV |
+| FR-EXPORT-001.3 | Export job matches as CSV |
+| FR-EXPORT-001.4 | Export analytics data |
+| FR-EXPORT-001.5 | Support selective data export |
+
+#### FR-EXPORT-002: Data Import
+**Priority:** Low
+**Description:** Users should be able to import data.
+
+| Requirement | Details |
+|------------|---------|
+| FR-EXPORT-002.1 | Import profile from JSON |
+| FR-EXPORT-002.2 | Import from LinkedIn export |
+| FR-EXPORT-002.3 | Validate imported data |
+| FR-EXPORT-002.4 | Handle import conflicts |
+
+---
+
+### 3.14 Error Handling & Recovery
+
+#### FR-ERR-001: Error Handling
+**Priority:** High
+**Description:** System must handle errors gracefully.
+
+| Requirement | Details |
+|------------|---------|
+| FR-ERR-001.1 | Display user-friendly error messages |
+| FR-ERR-001.2 | Log errors for debugging |
+| FR-ERR-001.3 | Provide error recovery suggestions |
+| FR-ERR-001.4 | Support retry for transient failures |
+| FR-ERR-001.5 | Prevent data loss during errors |
+
+#### FR-ERR-002: External API Failures
+**Priority:** High
+**Description:** System must handle external API failures gracefully.
+
+| Requirement | Details |
+|------------|---------|
+| FR-ERR-002.1 | Detect Claude API rate limits and back off |
+| FR-ERR-002.2 | Detect Exa API rate limits and back off |
+| FR-ERR-002.3 | Cache responses to reduce API calls |
+| FR-ERR-002.4 | Queue requests during rate limiting |
+| FR-ERR-002.5 | Notify user of API issues |
+| FR-ERR-002.6 | Implement exponential backoff (2s, 4s, 8s, 16s) |
+
+---
+
 ## 4. Non-Functional Requirements
 
 ### 4.1 Usability Requirements
@@ -961,9 +1076,103 @@ To create a comprehensive job search automation platform that reduces the time a
 
 ---
 
-## 11. Testing Requirements
+## 11. Deployment & Operations Requirements
 
-### 11.1 Unit Testing
+### 11.1 Deployment Requirements
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| DOR-DEP-001 | Containerization | Support Docker deployment |
+| DOR-DEP-002 | Environment Configuration | Support .env file configuration |
+| DOR-DEP-003 | Build Process | Provide production build scripts |
+| DOR-DEP-004 | Static Assets | Optimize and bundle static assets |
+| DOR-DEP-005 | Health Checks | Provide health check endpoints |
+| DOR-DEP-006 | Graceful Shutdown | Handle SIGTERM signals properly |
+
+### 11.2 Environment Management
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| DOR-ENV-001 | Development Mode | Support local development with hot reload |
+| DOR-ENV-002 | Staging Environment | Support staging for pre-production testing |
+| DOR-ENV-003 | Production Mode | Optimized production configuration |
+| DOR-ENV-004 | Environment Isolation | Prevent cross-environment data access |
+| DOR-ENV-005 | Secret Management | Support external secret providers |
+
+### 11.3 Monitoring & Logging
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| DOR-MON-001 | Application Logging | Structured JSON logging |
+| DOR-MON-002 | Log Levels | Support debug, info, warn, error levels |
+| DOR-MON-003 | Request Logging | Log all API requests with timing |
+| DOR-MON-004 | Error Tracking | Capture and report exceptions |
+| DOR-MON-005 | Metrics Collection | Track key performance metrics |
+| DOR-MON-006 | Audit Trail | Log security-relevant events |
+
+### 11.4 Backup & Recovery
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| DOR-BAK-001 | Database Backup | Support scheduled database backups |
+| DOR-BAK-002 | Backup Verification | Validate backup integrity |
+| DOR-BAK-003 | Point-in-Time Recovery | Support recovery to specific points |
+| DOR-BAK-004 | Disaster Recovery | Document recovery procedures |
+| DOR-BAK-005 | Data Migration | Support schema migrations |
+
+---
+
+## 12. Compliance & Legal Requirements
+
+### 12.1 Privacy Requirements
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| CR-PRIV-001 | Data Minimization | Only collect necessary data |
+| CR-PRIV-002 | Purpose Limitation | Use data only for stated purposes |
+| CR-PRIV-003 | User Consent | Obtain consent for data processing |
+| CR-PRIV-004 | Data Access | Allow users to view their data |
+| CR-PRIV-005 | Data Deletion | Allow users to delete their data |
+| CR-PRIV-006 | Data Portability | Allow users to export their data |
+
+### 12.2 GDPR Compliance
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| CR-GDPR-001 | Right to Access | Provide data access requests |
+| CR-GDPR-002 | Right to Rectification | Allow data correction |
+| CR-GDPR-003 | Right to Erasure | Implement data deletion |
+| CR-GDPR-004 | Right to Portability | Provide data export functionality |
+| CR-GDPR-005 | Privacy Policy | Maintain clear privacy policy |
+| CR-GDPR-006 | Cookie Consent | Implement cookie consent mechanism |
+
+### 12.3 Terms of Service Compliance
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| CR-TOS-001 | LinkedIn ToS | Comply with LinkedIn Terms of Service |
+| CR-TOS-002 | Indeed ToS | Comply with Indeed Terms of Service |
+| CR-TOS-003 | Rate Limiting | Respect platform rate limits |
+| CR-TOS-004 | User Agent | Use appropriate user agent strings |
+| CR-TOS-005 | Robots.txt | Respect robots.txt directives |
+| CR-TOS-006 | API Usage | Use official APIs where available |
+
+### 12.4 Accessibility Compliance
+
+| ID | Requirement | Details |
+|----|-------------|---------|
+| CR-A11Y-001 | WCAG 2.1 AA | Meet WCAG 2.1 Level AA standards |
+| CR-A11Y-002 | Keyboard Navigation | Full keyboard accessibility |
+| CR-A11Y-003 | Screen Reader Support | Compatible with screen readers |
+| CR-A11Y-004 | Color Contrast | Sufficient color contrast ratios |
+| CR-A11Y-005 | Focus Indicators | Visible focus indicators |
+| CR-A11Y-006 | Alt Text | Provide alt text for images |
+
+---
+
+## 13. Testing Requirements
+
+### 13.1 Unit Testing
 
 | ID | Requirement | Details |
 |----|-------------|---------|
@@ -973,7 +1182,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | TEST-UNIT-004 | Skill Normalization | Test skill matching algorithms |
 | TEST-UNIT-005 | Experience Parsing | Test experience year parsing |
 
-### 11.2 Integration Testing
+### 13.2 Integration Testing
 
 | ID | Requirement | Details |
 |----|-------------|---------|
@@ -983,7 +1192,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | TEST-INT-004 | AI Integration | Test Claude API integration |
 | TEST-INT-005 | Job Discovery | Test Exa API integration |
 
-### 11.3 End-to-End Testing
+### 13.3 End-to-End Testing
 
 | ID | Requirement | Details |
 |----|-------------|---------|
@@ -993,7 +1202,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | TEST-E2E-004 | Application Flow | Test application tracking |
 | TEST-E2E-005 | Auth Flow | Test signin/signout |
 
-### 11.4 Coverage Requirements
+### 13.4 Coverage Requirements
 
 | ID | Requirement | Target |
 |----|-------------|--------|
@@ -1003,9 +1212,9 @@ To create a comprehensive job search automation platform that reduces the time a
 
 ---
 
-## 12. Acceptance Criteria
+## 14. Acceptance Criteria
 
-### 12.1 Authentication Acceptance
+### 14.1 Authentication Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1015,7 +1224,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-AUTH-004 | Users can sign out completely | Manual test |
 | AC-AUTH-005 | Demo mode only works in development | Environment test |
 
-### 12.2 Profile Acceptance
+### 14.2 Profile Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1025,7 +1234,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-PROF-004 | Multiple profiles can be managed | Automated test |
 | AC-PROF-005 | Profile duplication works correctly | Automated test |
 
-### 12.3 Job Discovery Acceptance
+### 14.3 Job Discovery Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1034,7 +1243,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-DISC-003 | Job details are fully extracted | Automated test |
 | AC-DISC-004 | Easy-apply jobs are identified | Automated test |
 
-### 12.4 Job Matching Acceptance
+### 14.4 Job Matching Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1043,7 +1252,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-MATCH-003 | Fit categories are assigned correctly | Automated test |
 | AC-MATCH-004 | Recommendations are actionable | Manual review |
 
-### 12.5 Application Submission Acceptance
+### 14.5 Application Submission Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1053,7 +1262,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-SUB-004 | Resume upload works | E2E test |
 | AC-SUB-005 | Cover letters are generated | Automated test |
 
-### 12.6 Application Tracking Acceptance
+### 14.6 Application Tracking Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1062,7 +1271,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-TRACK-003 | Events are logged | Automated test |
 | AC-TRACK-004 | Notes can be added | Manual test |
 
-### 12.7 Analytics Acceptance
+### 14.7 Analytics Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1070,7 +1279,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-ANAL-002 | Charts display correctly | Visual test |
 | AC-ANAL-003 | Statistics are calculated correctly | Automated test |
 
-### 12.8 Automation Acceptance
+### 14.8 Automation Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1079,7 +1288,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-AUTO-003 | Sessions are logged | Automated test |
 | AC-AUTO-004 | Errors are captured | Automated test |
 
-### 12.9 Security Acceptance
+### 14.9 Security Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1088,7 +1297,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-SEC-003 | No sensitive data in logs | Code review |
 | AC-SEC-004 | Demo mode is disabled in production | Environment test |
 
-### 12.10 Performance Acceptance
+### 14.10 Performance Acceptance
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
@@ -1096,11 +1305,50 @@ To create a comprehensive job search automation platform that reduces the time a
 | AC-PERF-002 | API responses within 500ms | Performance test |
 | AC-PERF-003 | No memory leaks | Load test |
 
+### 14.11 CLI Acceptance
+
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| AC-CLI-001 | CLI commands execute correctly | Automated test |
+| AC-CLI-002 | Help text is displayed for all commands | Manual test |
+| AC-CLI-003 | Error messages are clear and actionable | Manual test |
+| AC-CLI-004 | Configuration file is loaded correctly | Automated test |
+| AC-CLI-005 | Output formats work correctly (JSON, table) | Automated test |
+
+### 14.12 Data Export/Import Acceptance
+
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| AC-EXP-001 | Profile data exports as valid JSON | Automated test |
+| AC-EXP-002 | Application history exports as valid CSV | Automated test |
+| AC-EXP-003 | Exported data can be re-imported | Automated test |
+| AC-EXP-004 | Import validates data before processing | Automated test |
+
+### 14.13 Compliance Acceptance
+
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| AC-COMP-001 | Users can request data deletion | Manual test |
+| AC-COMP-002 | Users can export all their data | Manual test |
+| AC-COMP-003 | Privacy policy is accessible | Manual test |
+| AC-COMP-004 | Cookie consent is implemented | Manual test |
+| AC-COMP-005 | WCAG 2.1 AA compliance verified | Accessibility audit |
+
+### 14.14 Deployment Acceptance
+
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| AC-DEP-001 | Application builds successfully | CI/CD test |
+| AC-DEP-002 | Docker container runs correctly | Automated test |
+| AC-DEP-003 | Health checks return correct status | Automated test |
+| AC-DEP-004 | Environment variables are validated | Automated test |
+| AC-DEP-005 | Graceful shutdown works correctly | Manual test |
+
 ---
 
-## 13. Future Roadmap
+## 15. Future Roadmap
 
-### 13.1 Planned Features (High Priority)
+### 15.1 Planned Features (High Priority)
 
 | ID | Feature | Description |
 |----|---------|-------------|
@@ -1110,7 +1358,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | FUT-004 | Cover Letter Templates | Customizable cover letter templates |
 | FUT-005 | Bulk Operations | Bulk status updates on applications |
 
-### 13.2 Planned Features (Medium Priority)
+### 15.2 Planned Features (Medium Priority)
 
 | ID | Feature | Description |
 |----|---------|-------------|
@@ -1120,7 +1368,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | FUT-009 | Email Notifications | Email alerts for application updates |
 | FUT-010 | Calendar Integration | Interview scheduling integration |
 
-### 13.3 Planned Features (Low Priority)
+### 15.3 Planned Features (Low Priority)
 
 | ID | Feature | Description |
 |----|---------|-------------|
@@ -1138,11 +1386,25 @@ To create a comprehensive job search automation platform that reduces the time a
 |------|------------|
 | Easy Apply | Simplified application process offered by LinkedIn |
 | Quick Apply | Simplified application process offered by Indeed |
-| Match Score | AI-calculated compatibility between job and profile |
-| Hunt | Automated job discovery and application workflow |
+| Match Score | AI-calculated compatibility between job and profile (0-100) |
+| Fit Category | Classification of match quality (excellent, good, moderate, stretch, unlikely) |
+| Hunt | Automated job discovery and application workflow session |
 | Profile | User's job seeker profile with experience and preferences |
 | Platform | External job board (LinkedIn, Indeed, etc.) |
 | Dry Run | Test mode that simulates but doesn't submit applications |
+| tRPC | Type-safe RPC framework for TypeScript |
+| Orchestrator | Core engine that coordinates job discovery, matching, and application |
+| Browser Automation | Playwright-based system for controlling web browsers |
+| Semantic Search | AI-powered search that understands meaning, not just keywords |
+| Exa API | External service for semantic job discovery |
+| Claude AI | Anthropic's AI model used for parsing, matching, and generation |
+| OAuth | Open standard for access delegation (Google login) |
+| Session | Authenticated user connection with stored state |
+| Headless Mode | Browser operation without visible UI |
+| Rate Limiting | Controlling request frequency to prevent overload/blocking |
+| Exponential Backoff | Retry strategy with progressively longer delays |
+| Monorepo | Single repository containing multiple related packages |
+| pnpm Workspace | Package management for monorepo structure |
 
 ## Appendix B: Environment Variables
 
@@ -1162,6 +1424,39 @@ To create a comprehensive job search automation platform that reduces the time a
 | RATE_LIMIT_DELAY_MS | No | Delay between actions |
 | HEADLESS_MODE | No | Run browser in headless mode |
 | DRY_RUN_MODE | No | Enable dry run mode |
+| BROWSER_TIMEOUT_MS | No | Browser operation timeout (default 30000) |
+| SCREENSHOT_ON_ERROR | No | Capture screenshots on automation errors |
+| REQUIRE_CONFIRMATION | No | Require user confirmation for applications |
+| BLOCKED_COMPANIES | No | Comma-separated list of blocked companies |
+| LOG_LEVEL | No | Logging level (debug, info, warn, error) |
+| NEXT_PUBLIC_APP_MODE | No | Client-side app mode awareness |
+
+---
+
+## Appendix C: Package Structure
+
+| Package | Purpose |
+|---------|---------|
+| `@job-applier/core` | Shared types, schemas, and utilities |
+| `@job-applier/config` | Configuration and environment management |
+| `@job-applier/database` | SQLite persistence layer with sql.js |
+| `@job-applier/resume-parser` | Claude-powered resume parsing |
+| `@job-applier/job-discovery` | Exa API job search integration |
+| `@job-applier/browser-automation` | Playwright browser control |
+| `@job-applier/platforms` | LinkedIn and Indeed adapters |
+| `@job-applier/application-tracker` | Application history and analytics |
+| `@job-applier/orchestrator` | Main job matching and application engine |
+| `@job-applier/ai-job-hunter` | AI form filling and page analysis |
+| `@job-applier/web` | Next.js frontend and tRPC backend |
+| `@job-applier/cli` | Command-line interface |
+
+---
+
+## Appendix D: Revision History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | December 2024 | - | Initial comprehensive requirements document |
 
 ---
 
