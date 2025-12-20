@@ -126,7 +126,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     }
   }, [open]);
 
-  // Search logic - uses demo data only in demo mode
+  // Search logic
   React.useEffect(() => {
     if (!query.trim()) {
       setResults([]);

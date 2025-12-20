@@ -207,10 +207,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Application Pipeline - uses demo data only in demo mode */}
+      {/* Application Pipeline */}
       <ApplicationPipeline
         stages={isDemoMode() ? mockPipelineStages : []}
-        totalApplications={stats.applicationsSent}
+        totalApplications={25}
       />
 
       {/* Main Content Grid */}

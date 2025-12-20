@@ -110,7 +110,7 @@ const buildProviders = (): Provider[] => {
 
   // Demo credentials provider - ONLY in demo mode
   if (isDemoMode()) {
-    console.log('📋 Demo mode enabled - demo authentication available');
+    console.log('Demo mode enabled - demo authentication available');
     providers.push(
       CredentialsProvider({
         id: 'demo-credentials',
