@@ -24,8 +24,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { trpc } from '@/lib/trpc/react';
 
 const generalSettingsSchema = z.object({
   defaultKeywords: z.string().optional(),
@@ -51,20 +51,30 @@ const defaultValues: GeneralSettingsValues = {
 
 export function GeneralSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
+
+  // Fetch existing general settings
+  const { data: savedSettings } = trpc.settings.getUserGeneralSettings.useQuery();
+
+  // Mutation to save settings
+  const updateSettingsMutation = trpc.settings.updateGeneralSettings.useMutation();
 
   const form = useForm<GeneralSettingsValues>({
     resolver: zodResolver(generalSettingsSchema),
     defaultValues,
   });
 
-  const onSubmit = async (data: GeneralSettingsValues) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement tRPC mutation to save settings
-      // await trpc.settings.updateGeneral.mutate(data);
+  // Update form when saved settings are loaded
+  React.useEffect(() => {
+    if (savedSettings) {
+      form.reset(savedSettings as GeneralSettingsValues);
+    }
+  }, [savedSettings, form]);
 
-      console.log('General settings:', data);
+  const isLoading = updateSettingsMutation.isPending;
+
+  const onSubmit = async (data: GeneralSettingsValues) => {
+    try {
+      await updateSettingsMutation.mutateAsync(data);
 
       toast({
         title: 'Settings saved',
@@ -76,8 +86,6 @@ export function GeneralSettings() {
         description: 'Failed to save settings. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

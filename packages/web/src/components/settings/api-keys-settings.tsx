@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { trpc } from '@/lib/trpc/react';
 
 const apiKeysSchema = z.object({
   claudeApiKey: z.string().min(1, 'Claude API key is required'),
@@ -46,7 +46,6 @@ interface ApiKeyStatus {
 
 export function ApiKeysSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
   const [showClaudeKey, setShowClaudeKey] = React.useState(false);
   const [showExaKey, setShowExaKey] = React.useState(false);
   const [keyStatus, setKeyStatus] = React.useState<ApiKeyStatus>({
@@ -54,10 +53,27 @@ export function ApiKeysSettings() {
     exa: 'idle',
   });
 
+  // Fetch API key status (whether keys are configured)
+  const { data: apiKeyStatus } = trpc.settings.getApiKeyStatus.useQuery();
+
+  // Mutations
+  const testApiKeyMutation = trpc.settings.testApiKey.useMutation();
+  const updateApiKeysMutation = trpc.settings.updateApiKeys.useMutation();
+
   const form = useForm<ApiKeysValues>({
     resolver: zodResolver(apiKeysSchema),
     defaultValues,
   });
+
+  // Update key status based on whether keys are already configured
+  React.useEffect(() => {
+    if (apiKeyStatus) {
+      setKeyStatus((prev) => ({
+        claude: apiKeyStatus.claudeConfigured ? 'valid' : prev.claude,
+        exa: apiKeyStatus.exaConfigured ? 'valid' : prev.exa,
+      }));
+    }
+  }, [apiKeyStatus]);
 
   const testClaudeKey = async () => {
     const key = form.getValues('claudeApiKey');
@@ -73,21 +89,17 @@ export function ApiKeysSettings() {
     setKeyStatus((prev) => ({ ...prev, claude: 'testing' }));
 
     try {
-      // TODO: Implement tRPC mutation to test Claude API key
-      // const result = await trpc.settings.testClaudeKey.mutate({ apiKey: key });
+      const result = await testApiKeyMutation.mutateAsync({
+        provider: 'claude',
+        apiKey: key,
+      });
 
-      // Simulate API test
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const isValid = key.startsWith('sk-'); // Basic validation
-
-      setKeyStatus((prev) => ({ ...prev, claude: isValid ? 'valid' : 'invalid' }));
+      setKeyStatus((prev) => ({ ...prev, claude: result.valid ? 'valid' : 'invalid' }));
 
       toast({
-        title: isValid ? 'Connection successful' : 'Connection failed',
-        description: isValid
-          ? 'Claude API key is valid and working.'
-          : 'Unable to authenticate with Claude API.',
-        variant: isValid ? 'default' : 'destructive',
+        title: result.valid ? 'Connection successful' : 'Connection failed',
+        description: result.message,
+        variant: result.valid ? 'default' : 'destructive',
       });
     } catch (error) {
       setKeyStatus((prev) => ({ ...prev, claude: 'invalid' }));
@@ -113,21 +125,17 @@ export function ApiKeysSettings() {
     setKeyStatus((prev) => ({ ...prev, exa: 'testing' }));
 
     try {
-      // TODO: Implement tRPC mutation to test Exa API key
-      // const result = await trpc.settings.testExaKey.mutate({ apiKey: key });
+      const result = await testApiKeyMutation.mutateAsync({
+        provider: 'exa',
+        apiKey: key,
+      });
 
-      // Simulate API test
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const isValid = key.length > 10; // Basic validation
-
-      setKeyStatus((prev) => ({ ...prev, exa: isValid ? 'valid' : 'invalid' }));
+      setKeyStatus((prev) => ({ ...prev, exa: result.valid ? 'valid' : 'invalid' }));
 
       toast({
-        title: isValid ? 'Connection successful' : 'Connection failed',
-        description: isValid
-          ? 'Exa API key is valid and working.'
-          : 'Unable to authenticate with Exa API.',
-        variant: isValid ? 'default' : 'destructive',
+        title: result.valid ? 'Connection successful' : 'Connection failed',
+        description: result.message,
+        variant: result.valid ? 'default' : 'destructive',
       });
     } catch (error) {
       setKeyStatus((prev) => ({ ...prev, exa: 'invalid' }));
@@ -140,12 +148,11 @@ export function ApiKeysSettings() {
   };
 
   const onSubmit = async (data: ApiKeysValues) => {
-    setIsLoading(true);
     try {
-      // TODO: Implement tRPC mutation to save API keys
-      // await trpc.settings.updateApiKeys.mutate(data);
-
-      console.log('API keys:', { ...data, claudeApiKey: '***', exaApiKey: '***' });
+      await updateApiKeysMutation.mutateAsync({
+        claudeApiKey: data.claudeApiKey,
+        exaApiKey: data.exaApiKey,
+      });
 
       toast({
         title: 'Settings saved',
@@ -157,10 +164,10 @@ export function ApiKeysSettings() {
         description: 'Failed to save API keys. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  const isLoading = updateApiKeysMutation.isPending;
 
   const getStatusIcon = (status: ApiKeyStatus['claude' | 'exa']) => {
     switch (status) {

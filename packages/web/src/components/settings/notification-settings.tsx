@@ -25,6 +25,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { trpc } from '@/lib/trpc/react';
 
 const notificationSettingsSchema = z.object({
   emailNotifications: z.boolean().default(true),
@@ -54,15 +55,29 @@ const defaultValues: NotificationSettingsValues = {
 
 export function NotificationSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
+
+  // Fetch existing notification settings
+  const { data: savedSettings } = trpc.settings.getUserNotificationSettings.useQuery();
+
+  // Mutation to save settings
+  const updateSettingsMutation = trpc.settings.updateNotificationSettings.useMutation();
 
   const form = useForm<NotificationSettingsValues>({
     resolver: zodResolver(notificationSettingsSchema),
     defaultValues,
   });
 
+  // Update form when saved settings are loaded
+  React.useEffect(() => {
+    if (savedSettings) {
+      form.reset(savedSettings as NotificationSettingsValues);
+    }
+  }, [savedSettings, form]);
+
   const emailEnabled = form.watch('emailNotifications');
   const desktopEnabled = form.watch('desktopNotifications');
+
+  const isLoading = updateSettingsMutation.isPending;
 
   const requestDesktopPermission = async () => {
     if (!('Notification' in window)) {
@@ -105,12 +120,8 @@ export function NotificationSettings() {
   };
 
   const onSubmit = async (data: NotificationSettingsValues) => {
-    setIsLoading(true);
     try {
-      // TODO: Implement tRPC mutation to save notification settings
-      // await trpc.settings.updateNotifications.mutate(data);
-
-      console.log('Notification settings:', data);
+      await updateSettingsMutation.mutateAsync(data);
 
       toast({
         title: 'Settings saved',
@@ -122,8 +133,6 @@ export function NotificationSettings() {
         description: 'Failed to save notification settings. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
