@@ -1,5 +1,5 @@
 import { Page, BrowserContext } from 'playwright';
-import * as fs from 'fs';
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import { BrowserError } from '@job-applier/core';
 import { getConfigManager } from '@job-applier/config';
@@ -44,8 +44,13 @@ export class SessionManager {
   /**
    * Check if a session exists for a platform
    */
-  hasSession(platform: string): boolean {
-    return fs.existsSync(this.getSessionPath(platform));
+  async hasSession(platform: string): Promise<boolean> {
+    try {
+      await fs.access(this.getSessionPath(platform));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -60,7 +65,7 @@ export class SessionManager {
       // Save cookies
       const cookies = await context.cookies();
       const cookiesPath = this.getCookiesPath(platform);
-      fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+      await fs.writeFile(cookiesPath, JSON.stringify(cookies, null, 2));
 
       // Save session state
       const state: SessionState = {
@@ -70,7 +75,7 @@ export class SessionManager {
         lastActivity: new Date().toISOString(),
       };
 
-      fs.writeFileSync(this.getSessionPath(platform), JSON.stringify(state, null, 2));
+      await fs.writeFile(this.getSessionPath(platform), JSON.stringify(state, null, 2));
     } catch (error) {
       throw new BrowserError(
         `Failed to save session for ${platform}: ${error instanceof Error ? error.message : String(error)}`
@@ -84,12 +89,14 @@ export class SessionManager {
   async loadSession(platform: string): Promise<SessionState | null> {
     const sessionPath = this.getSessionPath(platform);
 
-    if (!fs.existsSync(sessionPath)) {
+    try {
+      await fs.access(sessionPath);
+    } catch {
       return null;
     }
 
     try {
-      const content = fs.readFileSync(sessionPath, 'utf-8');
+      const content = await fs.readFile(sessionPath, 'utf-8');
       return JSON.parse(content);
     } catch (error) {
       console.error(`Failed to load session for ${platform}:`, error);
@@ -118,51 +125,55 @@ export class SessionManager {
     }
 
     // Load cookies
-    if (fs.existsSync(state.cookies)) {
-      try {
-        const cookies = JSON.parse(fs.readFileSync(state.cookies, 'utf-8'));
-        await context.addCookies(cookies);
-        return true;
-      } catch (error) {
-        console.error(`Failed to restore cookies for ${platform}:`, error);
-        return false;
-      }
+    try {
+      await fs.access(state.cookies);
+      const cookiesContent = await fs.readFile(state.cookies, 'utf-8');
+      const cookies = JSON.parse(cookiesContent);
+      await context.addCookies(cookies);
+      return true;
+    } catch (error) {
+      console.error(`Failed to restore cookies for ${platform}:`, error);
+      return false;
     }
-
-    return false;
   }
 
   /**
    * Delete session for a platform
    */
-  deleteSession(platform: string): void {
+  async deleteSession(platform: string): Promise<void> {
     const sessionPath = this.getSessionPath(platform);
     const cookiesPath = this.getCookiesPath(platform);
 
-    if (fs.existsSync(sessionPath)) {
-      fs.unlinkSync(sessionPath);
+    try {
+      await fs.unlink(sessionPath);
+    } catch {
+      // File doesn't exist, ignore
     }
-    if (fs.existsSync(cookiesPath)) {
-      fs.unlinkSync(cookiesPath);
+    try {
+      await fs.unlink(cookiesPath);
+    } catch {
+      // File doesn't exist, ignore
     }
   }
 
   /**
    * List all saved sessions
    */
-  listSessions(): SessionState[] {
+  async listSessions(): Promise<SessionState[]> {
     const sessions: SessionState[] = [];
 
-    if (!fs.existsSync(this.sessionsDir)) {
+    try {
+      await fs.access(this.sessionsDir);
+    } catch {
       return sessions;
     }
 
-    const files = fs.readdirSync(this.sessionsDir);
+    const files = await fs.readdir(this.sessionsDir);
 
     for (const file of files) {
       if (file.endsWith('.json') && !file.includes('-cookies')) {
         try {
-          const content = fs.readFileSync(path.join(this.sessionsDir, file), 'utf-8');
+          const content = await fs.readFile(path.join(this.sessionsDir, file), 'utf-8');
           sessions.push(JSON.parse(content));
         } catch {
           // Skip invalid files
@@ -176,8 +187,8 @@ export class SessionManager {
   /**
    * Clean up expired sessions
    */
-  cleanupExpiredSessions(maxAgeHours = 24): number {
-    const sessions = this.listSessions();
+  async cleanupExpiredSessions(maxAgeHours = 24): Promise<number> {
+    const sessions = await this.listSessions();
     let cleaned = 0;
 
     for (const session of sessions) {
@@ -186,7 +197,7 @@ export class SessionManager {
       const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
 
       if (hoursSinceActivity > maxAgeHours) {
-        this.deleteSession(session.platform);
+        await this.deleteSession(session.platform);
         cleaned++;
       }
     }
