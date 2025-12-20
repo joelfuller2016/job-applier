@@ -1,10 +1,12 @@
 /**
  * Settings Router
  * Handles application settings and configuration
+ * 
+ * SECURITY: Global settings require admin privileges to modify
  */
 
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, publicProcedure, adminProcedure } from '../trpc';
 
 /**
  * Settings router for app configuration
@@ -12,6 +14,7 @@ import { router, publicProcedure, protectedProcedure } from '../trpc';
 export const settingsRouter = router({
   /**
    * Get current application settings
+   * Public: Anyone can view non-sensitive settings
    */
   getSettings: publicProcedure
     .query(async ({ ctx }) => {
@@ -57,9 +60,9 @@ export const settingsRouter = router({
 
   /**
    * Update application settings
-   * SECURITY: Requires authentication
+   * SECURITY: Requires ADMIN privileges - these are global settings
    */
-  updateSettings: protectedProcedure
+  updateSettings: adminProcedure
     .input(
       z.object({
         claude: z.object({
@@ -142,9 +145,9 @@ export const settingsRouter = router({
 
   /**
    * Reset settings to defaults
-   * SECURITY: Requires authentication
+   * SECURITY: Requires ADMIN privileges
    */
-  resetSettings: protectedProcedure
+  resetSettings: adminProcedure
     .mutation(async ({ ctx }) => {
       // This would reset to default config
       // For now, just return success
@@ -156,6 +159,7 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
+   * Public: Non-sensitive path information
    */
   getDataPaths: publicProcedure
     .query(async ({ ctx }) => {

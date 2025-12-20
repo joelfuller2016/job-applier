@@ -1,6 +1,17 @@
 /**
  * Jobs Router
  * Handles job listing operations
+ *
+ * SECURITY NOTE: Jobs are SHARED external resources scraped from platforms.
+ * They do not have user ownership - any authenticated user can modify/delete.
+ *
+ * ACCESS MODEL DECISION (AI-Counsel reviewed):
+ * - Jobs are external entities from LinkedIn, Indeed, etc.
+ * - Not user-created content, so no natural ownership
+ * - Current single-user architecture: shared access is appropriate
+ * - For multi-tenant: Consider application-scoped access
+ *
+ * TODO (Multi-tenant): Implement application-scoped access control
  */
 
 import { z } from 'zod';
