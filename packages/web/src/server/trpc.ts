@@ -115,7 +115,7 @@ export const authMiddleware = t.middleware(async ({ ctx, next }) => {
   return next({
     ctx: {
       ...ctx,
-      // Narrow the type to ensure userId is defined and not 'default'
+      // Narrow the type to ensure userId is defined and not ANONYMOUS_USER_ID
       userId: ctx.userId as string,
     },
   });

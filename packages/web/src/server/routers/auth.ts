@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { ANONYMOUS_USER_ID } from '@/lib/constants';
 
 /**
  * Auth router for user operations
@@ -24,14 +25,14 @@ export const authRouter = router({
       return {
         session: ctx.session,
         userId: ctx.userId,
-        isAuthenticated: ctx.userId !== 'default' && !!ctx.session,
+        isAuthenticated: ctx.userId !== ANONYMOUS_USER_ID && !!ctx.session,
       };
     }),
 
   /**
    * Get or create user from session
    * This is called after OAuth sign-in to ensure user exists in our database
-   * NOTE: Must be publicProcedure because userId may still be 'default'
+   * NOTE: Must be publicProcedure because userId may still be ANONYMOUS_USER_ID
    * immediately after OAuth before user record is created
    */
   syncUser: publicProcedure

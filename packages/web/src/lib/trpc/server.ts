@@ -10,6 +10,7 @@ import { applicationRepository } from '@job-applier/database';
 import { getConfigManager } from '@job-applier/config';
 import { JobHunterOrchestrator } from '@job-applier/ai-job-hunter';
 import { authOptions } from '@/lib/auth';
+import { ANONYMOUS_USER_ID } from '@/lib/constants';
 
 /**
  * Create context for tRPC
@@ -26,7 +27,9 @@ export async function createContext() {
   return {
     // Auth
     session,
-    userId: session?.user?.id ?? 'default',
+    // SECURITY: Use the ANONYMOUS_USER_ID constant for unauthenticated users
+    // This ensures consistency with auth middleware checks
+    userId: session?.user?.id ?? ANONYMOUS_USER_ID,
 
     // Repositories
     profileRepository,
