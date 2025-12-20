@@ -8,7 +8,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, protectedProcedure } from '../trpc';
+import { router, protectedProcedure, aiRateLimitedProcedure } from '../trpc';
 
 /**
  * Hunt router for automated job hunting
@@ -16,9 +16,10 @@ import { router, protectedProcedure } from '../trpc';
 export const huntRouter = router({
   /**
    * Start a new job hunt
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + AI rate limiting (10/min)
+   * This endpoint uses Anthropic + Exa APIs which have per-request costs
    */
-  startHunt: protectedProcedure
+  startHunt: aiRateLimitedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -194,9 +195,10 @@ export const huntRouter = router({
 
   /**
    * Quick apply to a specific company/job
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + AI rate limiting (10/min)
+   * This endpoint uses Anthropic API which has per-request costs
    */
-  quickApply: protectedProcedure
+  quickApply: aiRateLimitedProcedure
     .input(
       z.object({
         profileId: z.string(),
