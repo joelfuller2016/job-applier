@@ -78,7 +78,8 @@ export function GeneralSettings() {
     } catch (error) {
       console.warn('Failed to parse stored general settings', error);
     }
-  }, [form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit = async (data: GeneralSettingsValues) => {
     setIsLoading(true);
