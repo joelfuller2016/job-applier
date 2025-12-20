@@ -1,10 +1,35 @@
 /**
  * Dashboard Router
  * Handles dashboard data aggregation
+ *
+ * SECURITY: All endpoints require authentication and verify profile ownership
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
+
+/**
+ * Verify that the authenticated user owns the profile
+ *
+ * @throws TRPCError FORBIDDEN if user doesn't own the profile
+ */
+function verifyProfileOwnership(
+  profile: { userId?: string | null } | null,
+  userId: string
+): void {
+  if (!profile) {
+    return; // Will be handled by caller
+  }
+
+  // Profiles with userId must belong to the authenticated user
+  if (profile.userId && profile.userId !== userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to access this profile',
+    });
+  }
+}
 
 /**
  * Dashboard router for overview and stats
@@ -12,7 +37,7 @@ import { router, protectedProcedure } from '../trpc';
 export const dashboardRouter = router({
   /**
    * Get dashboard overview data
-   * SECURITY: Requires authentication to view user's dashboard data
+   * SECURITY: Requires authentication and verifies profile ownership
    */
   getOverview: protectedProcedure
     .input(
@@ -21,10 +46,13 @@ export const dashboardRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Get default profile if not specified
+      // Get profile - prioritize user's default, then specified profileId
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
+
+      // Verify ownership before returning data
+      verifyProfileOwnership(profile, ctx.userId);
 
       if (!profile) {
         return {
@@ -90,7 +118,7 @@ export const dashboardRouter = router({
 
   /**
    * Get recent activity
-   * SECURITY: Requires authentication to view user's activity
+   * SECURITY: Requires authentication and verifies profile ownership
    */
   getRecentActivity: protectedProcedure
     .input(
@@ -100,9 +128,13 @@ export const dashboardRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      // Get profile - prioritize user's default, then specified profileId
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
+
+      // Verify ownership before returning data
+      verifyProfileOwnership(profile, ctx.userId);
 
       if (!profile) {
         return [];
