@@ -1,6 +1,8 @@
 /**
  * Applications Router
  * Handles job application operations
+ * 
+ * SECURITY: All mutations require authentication via protectedProcedure
  */
 
 import { z } from 'zod';
@@ -73,7 +75,7 @@ export const applicationsRouter = router({
 
   /**
    * Update application status
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication to prevent unauthorized status changes
    */
   updateStatus: protectedProcedure
     .input(
@@ -84,18 +86,29 @@ export const applicationsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const updated = ctx.applicationRepository.updateStatus(
-        input.id,
-        input.status as ApplicationStatus,
-        input.details
-      );
+      const application = ctx.applicationRepository.findById(input.id);
 
-      if (!updated) {
+      if (!application) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: `Application with ID ${input.id} not found`,
         });
       }
+
+      // SECURITY: Verify the application belongs to user's profile
+      const profile = ctx.profileRepository.findById(application.profileId);
+      if (profile?.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to modify this application',
+        });
+      }
+
+      const updated = ctx.applicationRepository.updateStatus(
+        input.id,
+        input.status as ApplicationStatus,
+        input.details
+      );
 
       return updated;
     }),
@@ -132,6 +145,15 @@ export const applicationsRouter = router({
         });
       }
 
+      // SECURITY: Verify the application belongs to user's profile
+      const profile = ctx.profileRepository.findById(application.profileId);
+      if (profile?.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to modify this application',
+        });
+      }
+
       const event = ctx.applicationRepository.addEvent(input.applicationId, {
         type: input.type,
         description: input.description,
@@ -153,17 +175,28 @@ export const applicationsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const updated = ctx.applicationRepository.markSubmitted(
-        input.id,
-        input.platformApplicationId
-      );
+      const application = ctx.applicationRepository.findById(input.id);
 
-      if (!updated) {
+      if (!application) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: `Application with ID ${input.id} not found`,
         });
       }
+
+      // SECURITY: Verify the application belongs to user's profile
+      const profile = ctx.profileRepository.findById(application.profileId);
+      if (profile?.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to modify this application',
+        });
+      }
+
+      const updated = ctx.applicationRepository.markSubmitted(
+        input.id,
+        input.platformApplicationId
+      );
 
       return updated;
     }),
