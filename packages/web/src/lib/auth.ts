@@ -27,19 +27,39 @@ declare module 'next-auth/jwt' {
 }
 
 /**
- * Check if we're in development mode
+ * Environment detection
  */
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isProduction = process.env.NODE_ENV === 'production';
+
+/**
+ * Check if demo auth is enabled and properly configured
+ */
+const isDemoAuthEnabled = !isProduction && process.env.ENABLE_DEMO_AUTH === 'true';
 
 /**
  * Validate required environment variables
+ * @throws Error if configuration is invalid
  */
 function validateAuthConfig(): void {
-  if (!isDevelopment && !process.env.NEXTAUTH_SECRET) {
+  // Production requires NEXTAUTH_SECRET
+  if (isProduction && !process.env.NEXTAUTH_SECRET) {
     throw new Error(
       'NEXTAUTH_SECRET environment variable is required in production. ' +
       'Generate one with: openssl rand -base64 32'
     );
+  }
+
+  // Demo auth requires DEMO_PASSWORD when enabled
+  if (isDemoAuthEnabled && !process.env.DEMO_PASSWORD) {
+    throw new Error(
+      'DEMO_PASSWORD environment variable is required when ENABLE_DEMO_AUTH=true. ' +
+      'Set a secure password in your .env file.'
+    );
+  }
+
+  // Warn about demo auth in development (once at startup, not per-auth)
+  if (isDemoAuthEnabled) {
+    console.warn('[AUTH] Demo authentication is ENABLED - DO NOT use in production');
   }
 }
 
@@ -53,8 +73,8 @@ export const authOptions: AuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
-    // Demo credentials only available in development mode
-    ...(isDevelopment && process.env.ENABLE_DEMO_AUTH === 'true'
+    // Demo credentials only available in non-production when explicitly enabled
+    ...(isDemoAuthEnabled
       ? [
           CredentialsProvider({
             name: 'Demo Account',
@@ -63,8 +83,7 @@ export const authOptions: AuthOptions = {
               password: { label: 'Password', type: 'password' },
             },
             async authorize(credentials) {
-              // Demo account ONLY for development/testing when explicitly enabled
-              console.warn('[AUTH] Demo authentication used - DO NOT use in production');
+              // Validate demo credentials
               if (
                 credentials?.email === 'demo@example.com' &&
                 credentials?.password === process.env.DEMO_PASSWORD
@@ -110,6 +129,6 @@ export const authOptions: AuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // SECURITY: Secret is validated in validateAuthConfig() - fallback only for development
-  secret: process.env.NEXTAUTH_SECRET || (isDevelopment ? 'dev-only-secret-not-for-production' : undefined),
+  // SECURITY: Secret is validated in validateAuthConfig() - fallback only for non-production
+  secret: process.env.NEXTAUTH_SECRET || (!isProduction ? 'dev-only-secret-not-for-production' : undefined),
 };

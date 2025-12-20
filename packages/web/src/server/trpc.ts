@@ -7,6 +7,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import type { Context } from '../lib/trpc/server';
+import { ANONYMOUS_USER_ID } from '../lib/constants';
 
 /**
  * Initialize tRPC with context
@@ -36,11 +37,11 @@ export const publicProcedure = t.procedure;
  * Ensures user is authenticated before proceeding
  */
 export const authMiddleware = t.middleware(async ({ ctx, next }) => {
-  // Check if user is authenticated (not using default/anonymous user)
-  if (!ctx.userId || ctx.userId === 'default') {
+  // Check if user is authenticated (not using anonymous/unauthenticated user)
+  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
-      message: 'You must be logged in to perform this action',
+      message: 'Authentication required. Please sign in to perform this action.',
     });
   }
 
