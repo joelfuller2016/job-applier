@@ -3,9 +3,35 @@
  * Provides Google OAuth authentication
  */
 
-import { AuthOptions, DefaultSession } from 'next-auth';
+import { AuthOptions, DefaultSession, Provider } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
+
+/**
+ * Check if demo auth is enabled
+ * SECURITY: Demo auth must be explicitly enabled and only works in development
+ */
+const isDemoAuthEnabled = (): boolean => {
+  return process.env.NODE_ENV === 'development' &&
+         process.env.ENABLE_DEMO_AUTH === 'true';
+};
+
+/**
+ * Get NextAuth secret with production safety check
+ * SECURITY: Secret MUST be provided in production via environment variable
+ */
+const getAuthSecret = (): string => {
+  const secret = process.env.NEXTAUTH_SECRET;
+
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'NEXTAUTH_SECRET environment variable is required in production. ' +
+      'Generate one with: openssl rand -base64 32'
+    );
+  }
+
+  return secret || 'development-only-secret-not-for-production';
+};
 
 // Extend the session type to include our custom fields
 declare module 'next-auth' {
@@ -26,37 +52,51 @@ declare module 'next-auth/jwt' {
   }
 }
 
-export const authOptions: AuthOptions = {
-  providers: [
+/**
+ * Build providers array based on configuration
+ */
+const buildProviders = (): Provider[] => {
+  const providers: Provider[] = [
     // Google OAuth Provider
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
-    // Email/Password Provider (for demo/development)
-    CredentialsProvider({
-      name: 'Demo Account',
-      credentials: {
-        email: { label: 'Email', type: 'email', placeholder: 'demo@example.com' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        // Demo account for development/testing
-        if (
-          credentials?.email === 'demo@example.com' &&
-          credentials?.password === 'demo123'
-        ) {
-          return {
-            id: 'demo-user-id',
-            name: 'Demo User',
-            email: 'demo@example.com',
-            image: null,
-          };
-        }
-        return null;
-      },
-    }),
-  ],
+  ];
+
+  // Only add demo credentials provider if explicitly enabled in development
+  if (isDemoAuthEnabled()) {
+    providers.push(
+      CredentialsProvider({
+        name: 'Demo Account',
+        credentials: {
+          email: { label: 'Email', type: 'email', placeholder: 'demo@example.com' },
+          password: { label: 'Password', type: 'password' },
+        },
+        async authorize(credentials) {
+          // Demo account for development/testing only
+          if (
+            credentials?.email === 'demo@example.com' &&
+            credentials?.password === 'demo123'
+          ) {
+            return {
+              id: 'demo-user-id',
+              name: 'Demo User',
+              email: 'demo@example.com',
+              image: null,
+            };
+          }
+          return null;
+        },
+      })
+    );
+  }
+
+  return providers;
+};
+
+export const authOptions: AuthOptions = {
+  providers: buildProviders(),
   callbacks: {
     async jwt({ token, user, account }) {
       // Persist user id to the token after sign in
@@ -85,5 +125,5 @@ export const authOptions: AuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET || 'development-secret-change-in-production',
+  secret: getAuthSecret(),
 };
