@@ -57,10 +57,10 @@ function validateAuthConfig(): void {
     );
   }
 
-  // Demo auth requires DEMO_PASSWORD when enabled
-  if (isDemoAuthEnabled && !process.env.DEMO_PASSWORD) {
+  // Demo auth requires NEXT_PUBLIC_DEMO_PASSWORD when enabled
+  if (isDemoAuthEnabled && !process.env.NEXT_PUBLIC_DEMO_PASSWORD) {
     throw new Error(
-      '[Auth Configuration Error] DEMO_PASSWORD environment variable is required when ENABLE_DEMO_AUTH=true. ' +
+      '[Auth Configuration Error] NEXT_PUBLIC_DEMO_PASSWORD environment variable is required when ENABLE_DEMO_AUTH=true. ' +
       'Set a secure password in your .env file.'
     );
   }
@@ -94,7 +94,7 @@ export const authOptions: AuthOptions = {
               // Validate demo credentials - password from environment
               if (
                 credentials?.email === 'demo@example.com' &&
-                credentials?.password === process.env.DEMO_PASSWORD
+                credentials?.password === process.env.NEXT_PUBLIC_DEMO_PASSWORD
               ) {
                 return {
                   id: 'demo-user-id',
