@@ -213,6 +213,14 @@ export const aiRateLimitedProcedure = t.procedure
   .use(aiRateLimitMiddleware);
 
 /**
+ * Admin user IDs - configurable via environment variable
+ * Format: comma-separated list of user IDs or 'default' for single-user mode
+ * Example: ADMIN_USER_IDS=user123,user456
+ * In single-user mode (not set), 'default' user has admin access
+ */
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || 'default').split(',').map(id => id.trim());
+
+/**
  * Admin middleware - checks for admin role
  */
 export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
@@ -223,7 +231,8 @@ export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
     });
   }
 
-  const isAdmin = (ctx as Context & { isAdmin?: boolean }).isAdmin === true;
+  // Check if user is in admin list
+  const isAdmin = ADMIN_USER_IDS.includes(ctx.userId);
 
   if (!isAdmin) {
     throw new TRPCError({
