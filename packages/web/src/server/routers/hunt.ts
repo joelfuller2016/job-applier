@@ -13,9 +13,9 @@ import { router, publicProcedure, protectedProcedure, aiRateLimitedProcedure } f
 export const huntRouter = router({
   /**
    * Start a new job hunt
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + AI rate limiting (10/min)
    */
-  startHunt: protectedProcedure
+  startHunt: aiRateLimitedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -77,9 +77,9 @@ export const huntRouter = router({
 
   /**
    * Quick apply to a specific company/job
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + AI rate limiting (10/min)
    */
-  quickApply: protectedProcedure
+  quickApply: aiRateLimitedProcedure
     .input(
       z.object({
         profileId: z.string(),
