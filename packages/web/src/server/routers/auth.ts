@@ -1,11 +1,15 @@
 /**
  * Auth Router
  * Handles user authentication and account operations
+ *
+ * SECURITY: All mutations are rate-limited to prevent abuse
+ * - syncUser: Rate limited to prevent account creation spam
+ * - updateUser/deleteAccount: Protected + rate limited
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, rateLimitedPublicProcedure, rateLimitedMutationProcedure } from '../trpc';
 
 /**
  * Auth router for user operations
@@ -26,8 +30,9 @@ export const authRouter = router({
   /**
    * Get or create user from session
    * This is called after OAuth sign-in to ensure user exists in our database
+   * SECURITY: Rate limited to prevent account creation spam (30/min)
    */
-  syncUser: publicProcedure
+  syncUser: rateLimitedPublicProcedure
     .mutation(async ({ ctx }) => {
       if (!ctx.session?.user?.email) {
         throw new TRPCError({
@@ -62,20 +67,15 @@ export const authRouter = router({
 
   /**
    * Update user profile
+   * SECURITY: Requires authentication + rate limited (30 mutations/min)
    */
-  updateUser: publicProcedure
+  updateUser: rateLimitedMutationProcedure
     .input(z.object({
       name: z.string().optional(),
       image: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
+      // ctx.userId is guaranteed by rateLimitedMutationProcedure (uses authMiddleware)
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {
@@ -90,16 +90,11 @@ export const authRouter = router({
 
   /**
    * Delete user account
+   * SECURITY: Requires authentication + rate limited (30 mutations/min)
    */
-  deleteAccount: publicProcedure
+  deleteAccount: rateLimitedMutationProcedure
     .mutation(async ({ ctx }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
+      // ctx.userId is guaranteed by rateLimitedMutationProcedure (uses authMiddleware)
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {
