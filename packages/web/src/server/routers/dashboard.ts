@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 
 /**
@@ -12,7 +13,7 @@ import { router, protectedProcedure } from '../trpc';
 export const dashboardRouter = router({
   /**
    * Get dashboard overview data
-   * SECURITY: Requires authentication to view user's dashboard data
+   * SECURITY: Requires authentication and profile ownership
    */
   getOverview: protectedProcedure
     .input(
@@ -21,10 +22,20 @@ export const dashboardRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Get default profile if not specified
+      // Get profile - either specified or user's default
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
+
+      // Verify ownership if a specific profileId was requested
+      if (input.profileId && profile) {
+        if (profile.userId && profile.userId !== ctx.userId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have access to this profile',
+          });
+        }
+      }
 
       if (!profile) {
         return {
@@ -90,7 +101,7 @@ export const dashboardRouter = router({
 
   /**
    * Get recent activity
-   * SECURITY: Requires authentication to view user's activity
+   * SECURITY: Requires authentication and profile ownership
    */
   getRecentActivity: protectedProcedure
     .input(
@@ -102,10 +113,18 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
 
       if (!profile) {
         return [];
+      }
+
+      // Verify ownership if a specific profileId was requested
+      if (input.profileId && profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this profile',
+        });
       }
 
       const applications = await ctx.applicationRepository.findByProfile(profile.id);
