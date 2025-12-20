@@ -27,6 +27,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { loadSettings, saveSettings } from '@/lib/settings-storage';
 
 const appearanceSettingsSchema = z.object({
   theme: z.enum(['light', 'dark', 'system']).default('system'),
@@ -65,14 +66,22 @@ export function AppearanceSettings() {
 
   const form = useForm<AppearanceSettingsValues>({
     resolver: zodResolver(appearanceSettingsSchema),
-    defaultValues: {
+    defaultValues: loadSettings('settings.appearance', appearanceSettingsSchema, {
       ...defaultValues,
       theme: (theme as AppearanceSettingsValues['theme']) || 'system',
-    },
+    }),
   });
 
   const currentTheme = form.watch('theme');
-  const currentAccent = form.watch('accentColor');
+
+  React.useEffect(() => {
+    form.reset(
+      loadSettings('settings.appearance', appearanceSettingsSchema, {
+        ...defaultValues,
+        theme: (theme as AppearanceSettingsValues['theme']) || 'system',
+      })
+    );
+  }, []);
 
   React.useEffect(() => {
     if (currentTheme) {
@@ -86,7 +95,7 @@ export function AppearanceSettings() {
       // TODO: Implement tRPC mutation to save appearance settings
       // await trpc.settings.updateAppearance.mutate(data);
 
-      console.log('Appearance settings:', data);
+      saveSettings('settings.appearance', data);
 
       // Apply theme
       setTheme(data.theme);
