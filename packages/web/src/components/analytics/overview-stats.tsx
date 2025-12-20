@@ -8,6 +8,7 @@ import {
   Award,
   Clock
 } from 'lucide-react';
+import { isDemoMode } from '@/lib/demo';
 
 interface OverviewStatsProps {
   dateRange: string;
@@ -51,21 +52,34 @@ function StatCard({ title, value, change, icon, isLoading }: StatCardProps) {
 }
 
 export function OverviewStats({ dateRange, isLoading }: OverviewStatsProps) {
-  // Mock data - replace with actual API calls
-  const stats = {
+  // Demo data - ONLY used when APP_MODE=demo
+  // In production, this would come from API calls
+  const stats = isDemoMode() ? {
     totalApplications: 127,
     responseRate: '24.4%',
     interviewRate: '12.6%',
     offerRate: '3.1%',
     avgResponseTime: '4.2 days',
+  } : {
+    totalApplications: 0,
+    responseRate: '0%',
+    interviewRate: '0%',
+    offerRate: '0%',
+    avgResponseTime: '-',
   };
 
-  const changes = {
+  const changes = isDemoMode() ? {
     totalApplications: '+12% from last period',
     responseRate: '+2.1% from last period',
     interviewRate: '-0.4% from last period',
     offerRate: '+0.8% from last period',
     avgResponseTime: '-0.3 days from last period',
+  } : {
+    totalApplications: undefined,
+    responseRate: undefined,
+    interviewRate: undefined,
+    offerRate: undefined,
+    avgResponseTime: undefined,
   };
 
   return (

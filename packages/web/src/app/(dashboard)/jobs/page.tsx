@@ -22,14 +22,7 @@ import { JobFilters } from '@/components/jobs/job-filters';
 import { JobDetailModal } from '@/components/jobs/job-detail-modal';
 import { JobCompareModal } from '@/components/jobs/job-compare-modal';
 import type { Job, JobFilters as JobFiltersType, JobSort, JobViewMode } from '@/types/job';
-
-/**
- * Check if demo mode is enabled (client-side)
- * Demo data is ONLY shown when NEXT_PUBLIC_APP_MODE=demo
- */
-const isDemoMode = (): boolean => {
-  return process.env.NEXT_PUBLIC_APP_MODE === 'demo';
-};
+import { isDemoMode } from '@/lib/demo';
 
 // Demo data - ONLY used when APP_MODE=demo
 const mockJobs: Job[] = [

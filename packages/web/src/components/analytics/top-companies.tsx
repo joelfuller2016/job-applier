@@ -4,14 +4,7 @@ import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-
-/**
- * Check if demo mode is enabled (client-side)
- * Demo data is ONLY shown when NEXT_PUBLIC_APP_MODE=demo
- */
-const isDemoMode = (): boolean => {
-  return process.env.NEXT_PUBLIC_APP_MODE === 'demo';
-};
+import { isDemoMode } from '@/lib/demo';
 
 interface TopCompaniesProps {
   dateRange: string;
@@ -135,6 +128,15 @@ export function TopCompanies({ dateRange, isLoading }: TopCompaniesProps) {
     return (
       <div className="flex h-[400px] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Empty state for production mode
+  if (companies.length === 0) {
+    return (
+      <div className="flex h-[400px] items-center justify-center text-muted-foreground">
+        <p>No company data available</p>
       </div>
     );
   }

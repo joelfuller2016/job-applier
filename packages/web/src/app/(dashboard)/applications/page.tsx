@@ -15,14 +15,7 @@ import type {
   ApplicationFilters,
   ViewMode,
 } from '@/types/application';
-
-/**
- * Check if demo mode is enabled (client-side)
- * Demo data is ONLY shown when NEXT_PUBLIC_APP_MODE=demo
- */
-const isDemoMode = (): boolean => {
-  return process.env.NEXT_PUBLIC_APP_MODE === 'demo';
-};
+import { isDemoMode } from '@/lib/demo';
 
 // Demo data - ONLY used when APP_MODE=demo
 const mockApplications: Application[] = [

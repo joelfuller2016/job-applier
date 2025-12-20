@@ -24,14 +24,7 @@ import {
   DialogContent,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-/**
- * Check if demo mode is enabled (client-side)
- * Demo data is ONLY shown when NEXT_PUBLIC_APP_MODE=demo
- */
-const isDemoMode = (): boolean => {
-  return process.env.NEXT_PUBLIC_APP_MODE === 'demo';
-};
+import { isDemoMode } from '@/lib/demo';
 
 interface SearchResult {
   id: string;

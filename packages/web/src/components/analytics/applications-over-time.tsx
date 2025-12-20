@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { format, subDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
+import { isDemoMode } from '@/lib/demo';
 
 interface ApplicationsOverTimeProps {
   dateRange: string;
@@ -25,7 +26,13 @@ export function ApplicationsOverTime({ dateRange, isLoading }: ApplicationsOverT
   const [granularity, setGranularity] = useState<Granularity>('day');
 
   const data = useMemo(() => {
-    // Mock data generation based on granularity
+    // Demo data - ONLY used when APP_MODE=demo
+    // In production, this would come from API calls
+    if (!isDemoMode()) {
+      return []; // Return empty array in production
+    }
+
+    // Demo data generation based on granularity
     const endDate = new Date();
     const startDate = subDays(endDate, dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90);
 
@@ -58,6 +65,15 @@ export function ApplicationsOverTime({ dateRange, isLoading }: ApplicationsOverT
     return (
       <div className="flex h-[350px] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Empty state for production mode
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[350px] items-center justify-center text-muted-foreground">
+        <p>No application data available</p>
       </div>
     );
   }
