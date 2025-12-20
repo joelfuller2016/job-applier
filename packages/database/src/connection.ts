@@ -88,13 +88,22 @@ export function getDatabase(): SqlJsDatabase {
 
 /**
  * Save database to file
+ * @throws DatabaseError if save fails (disk full, permissions, etc.)
  */
 export function saveDatabase(): void {
   // Only save if we have a database, a path, and it's not in-memory
   if (db && dbPath && dbPath !== ':memory:') {
-    const data = db.export();
-    const buffer = Buffer.from(data);
-    writeFileSync(dbPath, buffer);
+    try {
+      const data = db.export();
+      const buffer = Buffer.from(data);
+      writeFileSync(dbPath, buffer);
+    } catch (error) {
+      throw new DatabaseError(
+        `Failed to save database to ${dbPath}: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        { path: dbPath }
+      );
+    }
   }
 }
 

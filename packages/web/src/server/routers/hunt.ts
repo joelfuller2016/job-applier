@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, protectedProcedure } from '../trpc';
 
 /**
  * Hunt router for automated job hunting
@@ -13,8 +13,9 @@ import { router, publicProcedure } from '../trpc';
 export const huntRouter = router({
   /**
    * Start a new job hunt
+   * SECURITY: Requires authentication - triggers automated job applications
    */
-  startHunt: publicProcedure
+  startHunt: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -36,6 +37,14 @@ export const huntRouter = router({
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: `Profile with ID ${input.profileId} not found`,
+        });
+      }
+
+      // SECURITY: Verify profile ownership
+      if (profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to use this profile for job hunting',
         });
       }
 
@@ -75,8 +84,9 @@ export const huntRouter = router({
 
   /**
    * Quick apply to a specific company/job
+   * SECURITY: Requires authentication - submits job applications
    */
-  quickApply: publicProcedure
+  quickApply: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -91,6 +101,14 @@ export const huntRouter = router({
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: `Profile with ID ${input.profileId} not found`,
+        });
+      }
+
+      // SECURITY: Verify profile ownership
+      if (profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to use this profile for applications',
         });
       }
 
