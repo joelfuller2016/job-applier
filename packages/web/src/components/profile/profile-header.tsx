@@ -15,13 +15,28 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({ profile }: ProfileHeaderProps) {
   const [avatarUrl, setAvatarUrl] = React.useState<string | undefined>();
+  const avatarObjectUrlRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (avatarObjectUrlRef.current) {
+        URL.revokeObjectURL(avatarObjectUrlRef.current);
+        avatarObjectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (avatarObjectUrlRef.current) {
+      URL.revokeObjectURL(avatarObjectUrlRef.current);
+    }
+
     // Create a preview URL
     const url = URL.createObjectURL(file);
+    avatarObjectUrlRef.current = url;
     setAvatarUrl(url);
 
     // TODO: Implement actual upload to server/storage
