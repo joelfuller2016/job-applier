@@ -1,10 +1,13 @@
 /**
  * Settings Router
  * Handles application settings and configuration
+ * 
+ * SECURITY: Settings mutations require admin access.
+ * Regular users can only read settings, not modify them.
  */
 
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, protectedProcedure, adminProcedure } from '../trpc';
 
 /**
  * Settings router for app configuration
@@ -12,8 +15,9 @@ import { router, publicProcedure, protectedProcedure } from '../trpc';
 export const settingsRouter = router({
   /**
    * Get current application settings
+   * SECURITY: Requires authentication (users can read their settings)
    */
-  getSettings: publicProcedure
+  getSettings: protectedProcedure
     .query(async ({ ctx }) => {
       const config = ctx.config;
 
@@ -57,9 +61,15 @@ export const settingsRouter = router({
 
   /**
    * Update application settings
-   * SECURITY: Requires authentication
+   * SECURITY: Requires ADMIN access - modifies global configuration
+   * 
+   * This endpoint allows modification of system-wide settings including:
+   * - AI model configuration (affects all users)
+   * - Rate limits (affects all users)
+   * - Browser automation settings
+   * - Logging configuration
    */
-  updateSettings: protectedProcedure
+  updateSettings: adminProcedure
     .input(
       z.object({
         claude: z.object({
@@ -142,9 +152,9 @@ export const settingsRouter = router({
 
   /**
    * Reset settings to defaults
-   * SECURITY: Requires authentication
+   * SECURITY: Requires ADMIN access - affects global configuration
    */
-  resetSettings: protectedProcedure
+  resetSettings: adminProcedure
     .mutation(async ({ ctx }) => {
       // This would reset to default config
       // For now, just return success
@@ -156,8 +166,9 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
+   * SECURITY: Requires authentication (contains system paths)
    */
-  getDataPaths: publicProcedure
+  getDataPaths: protectedProcedure
     .query(async ({ ctx }) => {
       return {
         dataDir: ctx.configManager.getDataDir(),
