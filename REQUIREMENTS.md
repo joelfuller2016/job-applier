@@ -1,6 +1,6 @@
 # Job-Applier: Comprehensive Requirements Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Last Updated:** December 2024
 **Document Status:** Complete
 
@@ -702,7 +702,7 @@ To create a comprehensive job search automation platform that reduces the time a
 
 | ID | Requirement | Details |
 |----|-------------|---------|
-| TR-ARCH-001 | Monorepo Structure | Use pnpm workspace for package management |
+| TR-ARCH-001 | Monorepo Structure | Use npm workspace for package management |
 | TR-ARCH-002 | Package Separation | Maintain 14 separate packages with clear responsibilities |
 | TR-ARCH-003 | Type-Safe API | Use tRPC for end-to-end type safety |
 | TR-ARCH-004 | Schema Validation | Use Zod for runtime validation |
@@ -745,7 +745,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | ID | Requirement | Details |
 |----|-------------|---------|
 | TR-ENV-001 | Node.js | Version 18+ required |
-| TR-ENV-002 | Package Manager | pnpm 8+ required |
+| TR-ENV-002 | Package Manager | npm 9+ required |
 | TR-ENV-003 | OS Support | Linux, macOS, Windows |
 
 ---
@@ -1404,7 +1404,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | Rate Limiting | Controlling request frequency to prevent overload/blocking |
 | Exponential Backoff | Retry strategy with progressively longer delays |
 | Monorepo | Single repository containing multiple related packages |
-| pnpm Workspace | Package management for monorepo structure |
+| npm Workspace | Package management for monorepo structure |
 
 ## Appendix B: Environment Variables
 
@@ -1592,15 +1592,17 @@ To create a comprehensive job search automation platform that reduces the time a
 | Integration Tests | ✅ 80%+ | API and database tests |
 | E2E Tests | ✅ Complete | 13 Playwright test files |
 
-### D.6 Items for Future Development
+### D.6 Priority Items for Next Development Phase
 
-| ID | Feature | Priority |
-|----|---------|----------|
-| FUT-001 | Persistent hunt history | High |
-| FUT-002 | Data export functionality | Medium |
-| FUT-003 | Email notifications | Medium |
-| FUT-004 | Calendar integration | Low |
-| FUT-005 | Mobile app | Low |
+See Section 15 (Future Roadmap) for the complete feature roadmap. The following items are prioritized for the next development phase:
+
+| Priority | Roadmap ID | Feature | Notes |
+|----------|------------|---------|-------|
+| High | FUT-001 | WebSocket Hunt Tracking | Real-time progress persistence |
+| High | FUT-002 | Hunt History | Database storage for past sessions |
+| Medium | FUT-004 | Cover Letter Templates | Customizable templates |
+| Medium | FUT-009 | Email Notifications | Alerts for application updates |
+| Low | FUT-010 | Calendar Integration | Interview scheduling |
 
 ---
 
@@ -1609,7 +1611,7 @@ To create a comprehensive job search automation platform that reduces the time a
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | December 2024 | - | Initial comprehensive requirements document |
-| 1.1 | December 2024 | - | Added Implementation Status appendix |
+| 1.1 | December 2024 | - | Added Implementation Status appendix, fixed package manager references (pnpm → npm), aligned future roadmap references |
 
 ---
 
