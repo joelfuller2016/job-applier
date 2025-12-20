@@ -1,6 +1,8 @@
 /**
  * Hunt Router
  * Handles job hunting orchestration
+ * 
+ * SECURITY: All mutations require authentication via protectedProcedure
  */
 
 import { z } from 'zod';
@@ -13,7 +15,7 @@ import { router, publicProcedure, protectedProcedure } from '../trpc';
 export const huntRouter = router({
   /**
    * Start a new job hunt
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication - users can only hunt with their own profiles
    */
   startHunt: protectedProcedure
     .input(
@@ -40,6 +42,14 @@ export const huntRouter = router({
         });
       }
 
+      // SECURITY: Verify profile belongs to authenticated user
+      if (profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to use this profile',
+        });
+      }
+
       // Start hunt (this will be long-running, consider making it async with status tracking)
       const result = await ctx.orchestrator.hunt(
         profile,
@@ -55,19 +65,18 @@ export const huntRouter = router({
           dryRun: input.dryRun,
         },
         {
-          // Event callbacks - TODO: Implement WebSocket or database event tracking
-          // These are intentionally empty until real-time updates are implemented
-          onProgress: () => {
-            // Future: Emit via WebSocket or store in database
+          onProgress: (message) => {
+            console.log(`[Hunt Progress] ${message}`);
+            // TODO: Emit via WebSocket or store in database
           },
-          onJobDiscovered: () => {
-            // Future: Track discovered jobs in real-time
+          onJobDiscovered: (job) => {
+            console.log(`[Hunt] Discovered: ${job.title} at ${job.company}`);
           },
-          onJobMatched: () => {
-            // Future: Track matched jobs in real-time
+          onJobMatched: (job, score) => {
+            console.log(`[Hunt] Matched: ${job.title} at ${job.company} (${score}%)`);
           },
-          onApplicationComplete: () => {
-            // Future: Track application completions in real-time
+          onApplicationComplete: (attempt) => {
+            console.log(`[Hunt] Application: ${attempt.status} - ${attempt.jobTitle}`);
           },
         }
       );
@@ -77,7 +86,7 @@ export const huntRouter = router({
 
   /**
    * Quick apply to a specific company/job
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication - users can only apply with their own profiles
    */
   quickApply: protectedProcedure
     .input(
@@ -97,14 +106,21 @@ export const huntRouter = router({
         });
       }
 
+      // SECURITY: Verify profile belongs to authenticated user
+      if (profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to use this profile',
+        });
+      }
+
       const result = await ctx.orchestrator.quickApply(
         input.company,
         input.jobTitle,
         profile,
         {
-          // Event callback - TODO: Implement WebSocket or database event tracking
-          onProgress: () => {
-            // Future: Emit progress via WebSocket or store in database
+          onProgress: (message) => {
+            console.log(`[Quick Apply] ${message}`);
           },
         }
       );
