@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { loadSettings, saveSettings } from '@/lib/settings-storage';
 
@@ -61,7 +60,7 @@ export function GeneralSettings() {
 
   React.useEffect(() => {
     form.reset(loadSettings('settings.general', generalSettingsSchema, defaultValues));
-  }, [form]);
+  }, []);
 
   const onSubmit = async (data: GeneralSettingsValues) => {
     setIsLoading(true);
