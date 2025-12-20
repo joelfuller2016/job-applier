@@ -1,11 +1,19 @@
 /**
  * Hunt Router
  * Handles job hunting orchestration
+ * 
+ * NOTE: Session storage is in-memory (ephemeral). For production:
+ * - Move to database (PostgreSQL/Redis)
+ * - Implement proper distributed locking
+ * - Add persistent AbortController state
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, protectedProcedure } from '../trpc';
+
+// Session TTL in milliseconds (24 hours)
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Helper function to verify profile ownership
@@ -13,8 +21,7 @@ import { router, publicProcedure, protectedProcedure } from '../trpc';
  */
 function verifyProfileOwnership(
   profile: { userId?: string | null },
-  userId: string,
-  action: string = 'use'
+  userId: string
 ) {
   if (!profile.userId) {
     throw new TRPCError({
@@ -30,15 +37,65 @@ function verifyProfileOwnership(
   }
 }
 
-// In-memory hunt session store (placeholder - in production use database)
-const huntSessionStore = new Map<string, {
+// Extended hunt session type with AbortController
+interface HuntSession {
   id: string;
   userId: string;
   profileId: string;
   status: 'running' | 'stopped' | 'completed' | 'error';
   startedAt: string;
   endedAt?: string;
-}>();
+  error?: string;
+  abortController?: AbortController;
+  createdAt: number; // For TTL cleanup
+}
+
+// In-memory hunt session store (placeholder - in production use database)
+const huntSessionStore = new Map<string, HuntSession>();
+
+/**
+ * Cleanup expired sessions (called periodically)
+ */
+function cleanupExpiredSessions(): void {
+  const now = Date.now();
+  for (const [sessionId, session] of huntSessionStore.entries()) {
+    if (now - session.createdAt > SESSION_TTL_MS) {
+      // Abort if still running
+      session.abortController?.abort();
+      huntSessionStore.delete(sessionId);
+    }
+  }
+}
+
+// Run cleanup every hour
+setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+
+/**
+ * Helper function to get session with ownership verification
+ * SECURITY: Returns null for both not-found and not-owned (prevents enumeration)
+ */
+function getOwnedSession(sessionId: string, userId: string): HuntSession | null {
+  const session = huntSessionStore.get(sessionId);
+  if (!session || session.userId !== userId) {
+    return null;
+  }
+  return session;
+}
+
+/**
+ * Helper function to get session and throw if not owned
+ * SECURITY: Uses unified error to prevent enumeration
+ */
+function requireOwnedSession(sessionId: string, userId: string): HuntSession {
+  const session = getOwnedSession(sessionId, userId);
+  if (!session) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Access denied',
+    });
+  }
+  return session;
+}
 
 /**
  * Hunt router for automated job hunting
@@ -68,64 +125,89 @@ export const huntRouter = router({
       const profile = ctx.profileRepository.findById(input.profileId);
       if (!profile) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.profileId} not found`,
+          code: 'FORBIDDEN',
+          message: 'Access denied', // Unified error prevents profile enumeration
         });
       }
 
       // SECURITY: Verify the user owns this profile
       verifyProfileOwnership(profile, ctx.userId);
 
+      // Check if user already has a running hunt
+      const existingRunning = Array.from(huntSessionStore.values())
+        .find(s => s.userId === ctx.userId && s.status === 'running');
+      
+      if (existingRunning) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'You already have a running hunt. Stop it before starting a new one.',
+        });
+      }
+
       // Create hunt session owned by the user
       const sessionId = crypto.randomUUID();
-      huntSessionStore.set(sessionId, {
+      const abortController = new AbortController();
+      
+      const session: HuntSession = {
         id: sessionId,
         userId: ctx.userId,
         profileId: input.profileId,
         status: 'running',
         startedAt: new Date().toISOString(),
-      });
+        abortController,
+        createdAt: Date.now(),
+      };
+      
+      huntSessionStore.set(sessionId, session);
 
-      // Start hunt (this will be long-running, consider making it async with status tracking)
-      const result = await ctx.orchestrator.hunt(
-        profile,
-        {
-          searchQuery: input.searchQuery,
-          maxJobs: input.maxJobs,
-          matchThreshold: input.matchThreshold,
-          sources: input.sources,
-          includeCompanies: input.includeCompanies,
-          excludeCompanies: input.excludeCompanies,
-          autoApply: input.autoApply,
-          requireConfirmation: input.requireConfirmation,
-          dryRun: input.dryRun,
-        },
-        {
-          onProgress: (message) => {
-            console.log(`[Hunt Progress] ${message}`);
-            // TODO: Emit via WebSocket or store in database
+      try {
+        // Start hunt with abort signal for cancellation
+        const result = await ctx.orchestrator.hunt(
+          profile,
+          {
+            searchQuery: input.searchQuery,
+            maxJobs: input.maxJobs,
+            matchThreshold: input.matchThreshold,
+            sources: input.sources,
+            includeCompanies: input.includeCompanies,
+            excludeCompanies: input.excludeCompanies,
+            autoApply: input.autoApply,
+            requireConfirmation: input.requireConfirmation,
+            dryRun: input.dryRun,
           },
-          onJobDiscovered: (job) => {
-            console.log(`[Hunt] Discovered: ${job.title} at ${job.company}`);
-          },
-          onJobMatched: (job, score) => {
-            console.log(`[Hunt] Matched: ${job.title} at ${job.company} (${score}%)`);
-          },
-          onApplicationComplete: (attempt) => {
-            console.log(`[Hunt] Application: ${attempt.status} - ${attempt.jobTitle}`);
-          },
-        }
-      );
+          {
+            signal: abortController.signal, // Pass signal for cancellation
+            onProgress: (message) => {
+              console.log(`[Hunt Progress] ${message}`);
+            },
+            onJobDiscovered: (job) => {
+              console.log(`[Hunt] Discovered: ${job.title} at ${job.company}`);
+            },
+            onJobMatched: (job, score) => {
+              console.log(`[Hunt] Matched: ${job.title} at ${job.company} (${score}%)`);
+            },
+            onApplicationComplete: (attempt) => {
+              console.log(`[Hunt] Application: ${attempt.status} - ${attempt.jobTitle}`);
+            },
+          }
+        );
 
-      // Update session status
-      const session = huntSessionStore.get(sessionId);
-      if (session) {
+        // Update session status on success
         session.status = 'completed';
         session.endedAt = new Date().toISOString();
         huntSessionStore.set(sessionId, session);
-      }
 
-      return { ...result, sessionId };
+        return { ...result, sessionId };
+      } catch (error) {
+        // Update session status on error
+        session.status = 'error';
+        session.endedAt = new Date().toISOString();
+        session.error = error instanceof Error ? error.message : 'Unknown error';
+        huntSessionStore.set(sessionId, session);
+        
+        // Re-throw for client handling
+        throw error;
+      }
     }),
 
   /**
@@ -135,24 +217,11 @@ export const huntRouter = router({
   stopHunt: protectedProcedure
     .input(z.object({ huntId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const session = huntSessionStore.get(input.huntId);
+      // SECURITY: Unified error prevents enumeration
+      const session = requireOwnedSession(input.huntId, ctx.userId);
       
-      if (!session) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Hunt session with ID ${input.huntId} not found`,
-        });
-      }
-      
-      // SECURITY: Verify the user owns this hunt session
-      if (session.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to stop this hunt',
-        });
-      }
-      
-      // Update session status
+      // Actually cancel the running hunt
+      session.abortController?.abort();
       session.status = 'stopped';
       session.endedAt = new Date().toISOString();
       huntSessionStore.set(input.huntId, session);
@@ -181,8 +250,8 @@ export const huntRouter = router({
       const profile = ctx.profileRepository.findById(input.profileId);
       if (!profile) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.profileId} not found`,
+          code: 'FORBIDDEN',
+          message: 'Access denied', // Unified error prevents profile enumeration
         });
       }
 
@@ -205,27 +274,21 @@ export const huntRouter = router({
 
   /**
    * Get hunt status
-   * SECURITY: Requires authentication and hunt ownership
+   * SECURITY: Requires authentication, returns null for not-owned (prevents enumeration)
    */
   getHuntStatus: protectedProcedure
     .input(z.object({ sessionId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const session = huntSessionStore.get(input.sessionId);
+      const session = getOwnedSession(input.sessionId, ctx.userId);
       
       if (!session) {
+        // Return not_found status instead of throwing (consistent UX)
+        // But don't reveal whether session exists
         return {
           sessionId: input.sessionId,
           status: 'not_found' as const,
-          message: 'Hunt session not found',
+          message: 'Session not found or access denied',
         };
-      }
-      
-      // SECURITY: Verify the user owns this hunt session
-      if (session.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to view this hunt status',
-        });
       }
       
       return {
@@ -234,6 +297,7 @@ export const huntRouter = router({
         profileId: session.profileId,
         startedAt: session.startedAt,
         endedAt: session.endedAt,
+        error: session.error,
       };
     }),
 
@@ -258,9 +322,10 @@ export const huntRouter = router({
         userSessions = userSessions.filter(session => session.profileId === input.profileId);
       }
       
-      // Sort by startedAt descending and limit
+      // Sort by startedAt descending, limit, and remove AbortController
       return userSessions
         .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-        .slice(0, input.limit);
+        .slice(0, input.limit)
+        .map(({ abortController, ...rest }) => rest);
     }),
 });

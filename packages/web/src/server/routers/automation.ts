@@ -1,24 +1,21 @@
 /**
  * Automation Router
  * Handles automation control and status endpoints
+ * 
+ * NOTE: Session storage is in-memory (ephemeral). For production:
+ * - Move to database (PostgreSQL/Redis)
+ * - Implement proper distributed locking
+ * - Add persistent AbortController state
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, protectedProcedure } from '../trpc';
+
+// Session TTL in milliseconds (24 hours)
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Types
-const AutomationStatusSchema = z.object({
-  state: z.enum(['idle', 'running', 'paused', 'error']),
-  currentTask: z.string().optional(),
-  progress: z.number().optional(),
-  totalJobs: z.number().optional(),
-  processedJobs: z.number().optional(),
-  platform: z.enum(['linkedin', 'indeed', 'both']).optional(),
-  startedAt: z.string().optional(),
-  lastActivity: z.string().optional(),
-});
-
 const AutomationConfigSchema = z.object({
   platforms: z.array(z.enum(['linkedin', 'indeed'])),
   searchQuery: z.string().optional(),
@@ -28,59 +25,68 @@ const AutomationConfigSchema = z.object({
   autoRetry: z.boolean().default(true),
 });
 
-const AutomationSessionSchema = z.object({
-  id: z.string(),
-  userId: z.string(),
-  startedAt: z.string(),
-  endedAt: z.string().optional(),
-  config: AutomationConfigSchema,
-  stats: z.object({
-    applicationsSubmitted: z.number(),
-    applicationsSkipped: z.number(),
-    errorsEncountered: z.number(),
-  }),
-  status: z.enum(['active', 'completed', 'stopped', 'error']),
-});
-
-/**
- * Helper function to verify session ownership
- * SECURITY: Throws FORBIDDEN if user doesn't own the session
- */
-async function verifySessionOwnership(
-  sessionId: string,
-  userId: string,
-  getSessionFn: (id: string) => Promise<{ userId?: string | null } | null>
-): Promise<void> {
-  const session = await getSessionFn(sessionId);
-  
-  if (!session) {
-    throw new TRPCError({
-      code: 'NOT_FOUND',
-      message: `Session with ID ${sessionId} not found`,
-    });
-  }
-  
-  if (!session.userId) {
-    throw new TRPCError({
-      code: 'FORBIDDEN',
-      message: 'This session has no owner and cannot be controlled.',
-    });
-  }
-  
-  if (session.userId !== userId) {
-    throw new TRPCError({
-      code: 'FORBIDDEN',
-      message: 'You do not have permission to control this automation session',
-    });
-  }
+// Extended session type with AbortController
+interface AutomationSession {
+  id: string;
+  userId: string;
+  startedAt: string;
+  endedAt?: string;
+  config: z.infer<typeof AutomationConfigSchema>;
+  stats: {
+    applicationsSubmitted: number;
+    applicationsSkipped: number;
+    errorsEncountered: number;
+  };
+  status: 'active' | 'paused' | 'completed' | 'stopped' | 'error';
+  abortController?: AbortController;
+  createdAt: number; // For TTL cleanup
 }
 
 // In-memory session store (placeholder - in production use database)
-const sessionStore = new Map<string, z.infer<typeof AutomationSessionSchema>>();
+const sessionStore = new Map<string, AutomationSession>();
 
-// Helper to get session from store
-async function getSessionFromStore(sessionId: string) {
-  return sessionStore.get(sessionId) || null;
+/**
+ * Cleanup expired sessions (called periodically)
+ */
+function cleanupExpiredSessions(): void {
+  const now = Date.now();
+  for (const [sessionId, session] of sessionStore.entries()) {
+    if (now - session.createdAt > SESSION_TTL_MS) {
+      // Abort if still running
+      session.abortController?.abort();
+      sessionStore.delete(sessionId);
+    }
+  }
+}
+
+// Run cleanup every hour
+setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+
+/**
+ * Helper function to get session with ownership verification
+ * SECURITY: Returns null for both not-found and not-owned (prevents enumeration)
+ */
+function getOwnedSession(sessionId: string, userId: string): AutomationSession | null {
+  const session = sessionStore.get(sessionId);
+  if (!session || session.userId !== userId) {
+    return null;
+  }
+  return session;
+}
+
+/**
+ * Helper function to get session and throw if not owned
+ * SECURITY: Uses unified error to prevent enumeration
+ */
+function requireOwnedSession(sessionId: string, userId: string): AutomationSession {
+  const session = getOwnedSession(sessionId, userId);
+  if (!session) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Access denied',
+    });
+  }
+  return session;
 }
 
 export const automationRouter = router({
@@ -88,8 +94,20 @@ export const automationRouter = router({
    * Get current automation status for the authenticated user
    */
   getStatus: protectedProcedure.query(async ({ ctx }) => {
-    // In a real implementation, this would query the automation engine
-    // filtered by ctx.userId
+    // Find active session for user
+    const activeSession = Array.from(sessionStore.values())
+      .find(s => s.userId === ctx.userId && s.status === 'active');
+    
+    if (activeSession) {
+      return {
+        state: 'running' as const,
+        currentTask: undefined,
+        progress: activeSession.stats.applicationsSubmitted,
+        totalJobs: activeSession.config.maxApplicationsPerDay,
+        processedJobs: activeSession.stats.applicationsSubmitted,
+      };
+    }
+    
     return {
       state: 'idle' as const,
       currentTask: undefined,
@@ -140,12 +158,24 @@ export const automationRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Check if user already has an active session
+      const existingActive = Array.from(sessionStore.values())
+        .find(s => s.userId === ctx.userId && (s.status === 'active' || s.status === 'paused'));
+      
+      if (existingActive) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'You already have an active automation session. Stop it before starting a new one.',
+        });
+      }
+      
       const sessionId = crypto.randomUUID();
+      const abortController = new AbortController();
       
       // Create session owned by the authenticated user
-      const session: z.infer<typeof AutomationSessionSchema> = {
+      const session: AutomationSession = {
         id: sessionId,
-        userId: ctx.userId, // SECURITY: Session is owned by authenticated user
+        userId: ctx.userId,
         startedAt: new Date().toISOString(),
         config: {
           platforms: input.platforms,
@@ -161,9 +191,14 @@ export const automationRouter = router({
           errorsEncountered: 0,
         },
         status: 'active',
+        abortController,
+        createdAt: Date.now(),
       };
       
       sessionStore.set(sessionId, session);
+      
+      // TODO: Start actual automation with abortController.signal
+      // automationEngine.start(session.config, { signal: abortController.signal });
       
       return {
         success: true,
@@ -179,16 +214,13 @@ export const automationRouter = router({
   stop: protectedProcedure
     .input(z.object({ sessionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify user owns this session
-      await verifySessionOwnership(input.sessionId, ctx.userId, getSessionFromStore);
+      const session = requireOwnedSession(input.sessionId, ctx.userId);
       
-      // Update session status
-      const session = sessionStore.get(input.sessionId);
-      if (session) {
-        session.status = 'stopped';
-        session.endedAt = new Date().toISOString();
-        sessionStore.set(input.sessionId, session);
-      }
+      // Actually stop the automation
+      session.abortController?.abort();
+      session.status = 'stopped';
+      session.endedAt = new Date().toISOString();
+      sessionStore.set(input.sessionId, session);
       
       return {
         success: true,
@@ -203,8 +235,17 @@ export const automationRouter = router({
   pause: protectedProcedure
     .input(z.object({ sessionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify user owns this session
-      await verifySessionOwnership(input.sessionId, ctx.userId, getSessionFromStore);
+      const session = requireOwnedSession(input.sessionId, ctx.userId);
+      
+      if (session.status !== 'active') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Can only pause an active automation',
+        });
+      }
+      
+      session.status = 'paused';
+      sessionStore.set(input.sessionId, session);
       
       return {
         success: true,
@@ -219,8 +260,17 @@ export const automationRouter = router({
   resume: protectedProcedure
     .input(z.object({ sessionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify user owns this session
-      await verifySessionOwnership(input.sessionId, ctx.userId, getSessionFromStore);
+      const session = requireOwnedSession(input.sessionId, ctx.userId);
+      
+      if (session.status !== 'paused') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Can only resume a paused automation',
+        });
+      }
+      
+      session.status = 'active';
+      sessionStore.set(input.sessionId, session);
       
       return {
         success: true,
@@ -243,6 +293,7 @@ export const automationRouter = router({
       // SECURITY: Filter sessions by authenticated user
       const userSessions = Array.from(sessionStore.values())
         .filter(session => session.userId === ctx.userId)
+        .map(({ abortController, ...rest }) => rest) // Don't expose AbortController
         .slice(input.offset, input.offset + input.limit);
       
       const totalUserSessions = Array.from(sessionStore.values())
@@ -256,26 +307,18 @@ export const automationRouter = router({
 
   /**
    * Get session by ID
-   * SECURITY: Requires authentication and session ownership
+   * SECURITY: Returns null for not-found/not-owned (prevents enumeration)
    */
   getSession: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const session = sessionStore.get(input.id);
-      
+      const session = getOwnedSession(input.id, ctx.userId);
       if (!session) {
         return null;
       }
-      
-      // SECURITY: Verify user owns this session
-      if (session.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to view this session',
-        });
-      }
-      
-      return session;
+      // Don't expose AbortController
+      const { abortController, ...rest } = session;
+      return rest;
     }),
 
   /**
@@ -292,14 +335,11 @@ export const automationRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // If sessionId provided, verify ownership
+      // If sessionId provided, verify ownership (silently return empty if not owned)
       if (input.sessionId) {
-        const session = sessionStore.get(input.sessionId);
-        if (session && session.userId !== ctx.userId) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'You do not have permission to view logs for this session',
-          });
+        const session = getOwnedSession(input.sessionId, ctx.userId);
+        if (!session) {
+          return { logs: [], total: 0 };
         }
       }
       

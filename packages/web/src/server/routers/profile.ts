@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, protectedProcedure } from '../trpc';
 import { UserProfileSchema, JobPreferencesSchema, ContactInfoSchema, SkillSchema, WorkExperienceSchema, EducationSchema, CertificationSchema, ProjectSchema } from '@job-applier/core';
 
 /**
@@ -53,6 +53,28 @@ function verifyProfileOwnership(
   }
 }
 
+/**
+ * Helper function to get profile with unified error handling
+ * SECURITY: Returns same error for not-found and not-owned (prevents enumeration)
+ */
+function getOwnedProfile(
+  profileRepository: { findById: (id: string) => { userId?: string | null } | null },
+  profileId: string,
+  userId: string
+): { userId?: string | null } {
+  const profile = profileRepository.findById(profileId);
+  
+  // SECURITY: Unified error prevents profile ID enumeration
+  if (!profile || !profile.userId || profile.userId !== userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Access denied',
+    });
+  }
+  
+  return profile;
+}
+
 
 /**
  * Profile router with CRUD operations
@@ -70,23 +92,13 @@ export const profileRouter = router({
   /**
    * Get user profile by ID
    * SECURITY: Requires authentication and ownership
+   * Uses unified error to prevent profile ID enumeration
    */
   getProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      // SECURITY: Verify ownership
-      verifyProfileOwnership(profile, ctx.userId, 'access');
-
-      return profile;
+      // SECURITY: Unified error for not-found and not-owned
+      return getOwnedProfile(ctx.profileRepository, input.id, ctx.userId);
     }),
 
   /**
@@ -111,7 +123,7 @@ export const profileRouter = router({
 
   /**
    * Update existing profile
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication and ownership
    */
   updateProfile: protectedProcedure
     .input(
@@ -121,64 +133,22 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      // Verify ownership - orphaned profiles (no userId) cannot be modified
-      if (!profile.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'This profile has no owner and cannot be modified. Please create a new profile.',
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to modify this profile',
-        });
-      }
-
+      // SECURITY: Unified error for not-found and not-owned
+      getOwnedProfile(ctx.profileRepository, input.id, ctx.userId);
+      
       const updated = ctx.profileRepository.update(input.id, input.data);
       return updated;
     }),
 
   /**
    * Delete a profile
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication and ownership
    */
   deleteProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      // Verify ownership - orphaned profiles (no userId) cannot be deleted
-      if (!profile.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'This profile has no owner and cannot be deleted. Contact an administrator.',
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to delete this profile',
-        });
-      }
+      // SECURITY: Unified error for not-found and not-owned
+      getOwnedProfile(ctx.profileRepository, input.id, ctx.userId);
 
       ctx.profileRepository.delete(input.id);
       return { success: true };
@@ -186,26 +156,13 @@ export const profileRouter = router({
 
   /**
    * Set a profile as default
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication and ownership
    */
   setDefaultProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have access to this profile',
-        });
-      }
+      // SECURITY: Unified error for not-found and not-owned
+      getOwnedProfile(ctx.profileRepository, input.id, ctx.userId);
 
       return ctx.profileRepository.setDefault(input.id, ctx.userId);
     }),
@@ -221,11 +178,9 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-      if (!profile) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
-      }
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      // SECURITY: Unified error for not-found and not-owned
+      getOwnedProfile(ctx.profileRepository, input.id, ctx.userId);
+      
       return ctx.profileRepository.update(input.id, { contact: input.contact });
     }),
 
@@ -240,11 +195,9 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-      if (!profile) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
-      }
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      // SECURITY: Unified error for not-found and not-owned
+      getOwnedProfile(ctx.profileRepository, input.id, ctx.userId);
+      
       return ctx.profileRepository.update(input.id, { preferences: input.preferences });
     }),
 
@@ -259,16 +212,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { skills?: Array<{ name: string }> };
 
       const skills = [...(profile.skills || []), input.skill];
       return ctx.profileRepository.update(input.profileId, { skills });
@@ -285,16 +229,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { skills?: Array<{ name: string }> };
 
       const skills = (profile.skills || []).filter(s => s.name !== input.skillName);
       return ctx.profileRepository.update(input.profileId, { skills });
@@ -311,16 +246,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { experience?: Array<unknown> };
 
       const experience = [...(profile.experience || []), input.experience];
       return ctx.profileRepository.update(input.profileId, { experience });
@@ -338,16 +264,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { experience?: Array<{ id?: string }> };
 
       const experience = (profile.experience || []).map(exp =>
         exp.id === input.experienceId ? { ...exp, ...input.experience } : exp
@@ -366,16 +283,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { experience?: Array<{ id?: string }> };
 
       const experience = (profile.experience || []).filter(e => e.id !== input.experienceId);
       return ctx.profileRepository.update(input.profileId, { experience });
@@ -392,16 +300,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { education?: Array<unknown> };
 
       const education = [...(profile.education || []), input.education];
       return ctx.profileRepository.update(input.profileId, { education });
@@ -419,16 +318,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { education?: Array<{ id?: string }> };
 
       const education = (profile.education || []).map(edu =>
         edu.id === input.educationId ? { ...edu, ...input.education } : edu
@@ -447,16 +337,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { education?: Array<{ id?: string }> };
 
       const education = (profile.education || []).filter(e => e.id !== input.educationId);
       return ctx.profileRepository.update(input.profileId, { education });
@@ -473,16 +354,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { projects?: Array<unknown> };
 
       const projects = [...(profile.projects || []), input.project];
       return ctx.profileRepository.update(input.profileId, { projects });
@@ -499,16 +371,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      const profile = getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId) as { certifications?: Array<unknown> };
 
       const certifications = [...(profile.certifications || []), input.certification];
       return ctx.profileRepository.update(input.profileId, { certifications });
@@ -526,11 +389,9 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-      if (!profile) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
-      }
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      // SECURITY: Unified error for not-found and not-owned
+      getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId);
+      
       return ctx.profileRepository.update(input.profileId, {
         resumeContent: input.resumeContent,
         resumePath: input.resumePath,
@@ -549,11 +410,9 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.profileId);
-      if (!profile) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
-      }
-      verifyProfileOwnership(profile, ctx.userId, 'modify');
+      // SECURITY: Unified error for not-found and not-owned
+      getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId);
+      
       return ctx.profileRepository.update(input.profileId, {
         coverLetterTemplate: input.coverLetterTemplate,
       });
@@ -571,15 +430,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.profileId) {
-        const profile = ctx.profileRepository.findById(input.profileId);
-        if (!profile) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: `Profile with ID ${input.profileId} not found`,
-          });
-        }
-
-        verifyProfileOwnership(profile, ctx.userId, 'modify');
+        // SECURITY: Unified error for not-found and not-owned
+        getOwnedProfile(ctx.profileRepository, input.profileId, ctx.userId);
 
         return ctx.profileRepository.update(input.profileId, {
           resumePath: input.resumePath,
@@ -599,16 +451,15 @@ export const profileRouter = router({
   duplicateProfile: protectedProcedure
     .input(z.object({ id: z.string(), newName: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      verifyProfileOwnership(profile, ctx.userId, 'duplicate');
+      const profile = getOwnedProfile(ctx.profileRepository, input.id, ctx.userId) as {
+        id?: string;
+        userId?: string;
+        createdAt?: string;
+        updatedAt?: string;
+        isDefault?: boolean;
+        firstName?: string;
+        lastName?: string;
+      };
 
       // Create a copy of the profile
       const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile;
