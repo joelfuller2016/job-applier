@@ -12,6 +12,7 @@ import {
   Legend,
   Cell,
 } from 'recharts';
+import { isDemoMode } from '@/lib/demo';
 
 interface SuccessBySourceProps {
   dateRange: string;
@@ -30,7 +31,12 @@ interface SourceData {
 
 export function SuccessBySource({ dateRange, isLoading }: SuccessBySourceProps) {
   const data: SourceData[] = useMemo(() => {
-    // Mock data - replace with actual API calls
+    // Demo data - ONLY used when APP_MODE=demo
+    // In production, this would come from API calls
+    if (!isDemoMode()) {
+      return []; // Return empty array in production
+    }
+
     const sources = [
       {
         source: 'LinkedIn',
@@ -76,6 +82,15 @@ export function SuccessBySource({ dateRange, isLoading }: SuccessBySourceProps) 
     return (
       <div className="flex h-[350px] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Empty state for production mode
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[350px] items-center justify-center text-muted-foreground">
+        <p>No source data available</p>
       </div>
     );
   }

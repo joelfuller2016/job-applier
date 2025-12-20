@@ -19,6 +19,7 @@ const nextConfig = {
   ],
   experimental: {
     serverComponentsExternalPackages: ['better-sqlite3'],
+    instrumentationHook: true,
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {

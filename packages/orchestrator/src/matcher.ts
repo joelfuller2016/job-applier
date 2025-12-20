@@ -35,12 +35,15 @@ export class JobMatcher {
   private client: Anthropic;
   private matchRepo: MatchRepository;
   private weights: MatchWeights;
+  private model: string;
 
   constructor(weights: MatchWeights = DEFAULT_WEIGHTS) {
     const config = getConfigManager();
+    const claudeConfig = config.getClaude();
     this.client = new Anthropic({
-      apiKey: config.getClaude().apiKey,
+      apiKey: claudeConfig.apiKey,
     });
+    this.model = claudeConfig.model;
     this.matchRepo = new MatchRepository();
     this.weights = weights;
   }
@@ -403,7 +406,7 @@ Provide your response in this exact JSON format:
 Only respond with the JSON, no other text.`;
 
       const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: this.model,
         max_tokens: 800,
         messages: [{ role: 'user', content: prompt }],
       });

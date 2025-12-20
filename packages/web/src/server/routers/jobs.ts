@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { JobSearchQuery } from '@job-applier/core';
 
@@ -33,7 +34,10 @@ export const jobsRouter = router({
       const job = ctx.jobRepository.findById(input.id);
 
       if (!job) {
-        throw new Error(`Job with ID ${input.id} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Job with ID ${input.id} not found`,
+        });
       }
 
       return job;
@@ -84,7 +88,10 @@ export const jobsRouter = router({
       const updated = ctx.jobRepository.update(input.id, input.updates);
 
       if (!updated) {
-        throw new Error(`Job with ID ${input.id} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Job with ID ${input.id} not found`,
+        });
       }
 
       return updated;
@@ -99,7 +106,10 @@ export const jobsRouter = router({
       const deleted = ctx.jobRepository.delete(input.id);
 
       if (!deleted) {
-        throw new Error(`Job with ID ${input.id} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Job with ID ${input.id} not found`,
+        });
       }
 
       return { success: true };

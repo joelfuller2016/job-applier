@@ -4,8 +4,9 @@
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { ApplicationStatus } from '@job-applier/core';
+import { ApplicationStatus, ApplicationStatusSchema } from '@job-applier/core';
 
 /**
  * Applications router for tracking job applications
@@ -18,19 +19,7 @@ export const applicationsRouter = router({
     .input(
       z.object({
         profileId: z.string().optional(),
-        // Must match ApplicationStatusSchema from @job-applier/core
-        status: z.enum([
-          'draft',
-          'submitted',
-          'viewed',
-          'in-review',
-          'interview',
-          'offer',
-          'rejected',
-          'withdrawn',
-          'expired',
-          'error',
-        ] as const).optional(),
+        status: ApplicationStatusSchema.optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -60,7 +49,10 @@ export const applicationsRouter = router({
       const application = ctx.applicationRepository.findById(input.id);
 
       if (!application) {
-        throw new Error(`Application with ID ${input.id} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Application with ID ${input.id} not found`,
+        });
       }
 
       return application;
@@ -86,19 +78,7 @@ export const applicationsRouter = router({
     .input(
       z.object({
         id: z.string(),
-        // Must match ApplicationStatusSchema from @job-applier/core
-        status: z.enum([
-          'draft',
-          'submitted',
-          'viewed',
-          'in-review',
-          'interview',
-          'offer',
-          'rejected',
-          'withdrawn',
-          'expired',
-          'error',
-        ] as const),
+        status: ApplicationStatusSchema,
         details: z.string().optional(),
       })
     )
@@ -110,7 +90,10 @@ export const applicationsRouter = router({
       );
 
       if (!updated) {
-        throw new Error(`Application with ID ${input.id} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Application with ID ${input.id} not found`,
+        });
       }
 
       return updated;
@@ -141,7 +124,10 @@ export const applicationsRouter = router({
       // Verify application exists
       const application = ctx.applicationRepository.findById(input.applicationId);
       if (!application) {
-        throw new Error(`Application with ID ${input.applicationId} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Application with ID ${input.applicationId} not found`,
+        });
       }
 
       const event = ctx.applicationRepository.addEvent(input.applicationId, {
@@ -170,7 +156,10 @@ export const applicationsRouter = router({
       );
 
       if (!updated) {
-        throw new Error(`Application with ID ${input.id} not found`);
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Application with ID ${input.id} not found`,
+        });
       }
 
       return updated;
