@@ -1,6 +1,8 @@
 /**
  * Profile Router
  * Handles user profile operations with multi-profile support
+ * 
+ * SECURITY: All mutations require authentication via protectedProcedure
  */
 
 import { z } from 'zod';
@@ -17,6 +19,24 @@ const ExtendedProfileInputSchema = UserProfileSchema.omit({ id: true, createdAt:
   coverLetterTemplate: z.string().optional(),
   isDefault: z.boolean().optional(),
 });
+
+/**
+ * Helper to verify profile ownership
+ */
+function verifyProfileOwnership(profile: { userId?: string | null }, userId: string): void {
+  if (profile.userId && profile.userId !== userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to modify this profile',
+    });
+  }
+  if (!profile.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'This profile has no owner and cannot be modified. Please create a new profile.',
+    });
+  }
+}
 
 /**
  * Profile router with CRUD operations
@@ -106,20 +126,7 @@ export const profileRouter = router({
         });
       }
 
-      // Verify ownership - orphaned profiles (no userId) cannot be modified
-      if (!profile.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'This profile has no owner and cannot be modified. Please create a new profile.',
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to modify this profile',
-        });
-      }
+      verifyProfileOwnership(profile, ctx.userId);
 
       const updated = ctx.profileRepository.update(input.id, input.data);
       return updated;
@@ -141,20 +148,7 @@ export const profileRouter = router({
         });
       }
 
-      // Verify ownership - orphaned profiles (no userId) cannot be deleted
-      if (!profile.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'This profile has no owner and cannot be deleted. Contact an administrator.',
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to delete this profile',
-        });
-      }
+      verifyProfileOwnership(profile, ctx.userId);
 
       ctx.profileRepository.delete(input.id);
       return { success: true };
@@ -198,6 +192,11 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.id);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId);
       return ctx.profileRepository.update(input.id, { contact: input.contact });
     }),
 
@@ -213,6 +212,11 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.id);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId);
       return ctx.profileRepository.update(input.id, { preferences: input.preferences });
     }),
 
@@ -236,6 +240,8 @@ export const profileRouter = router({
           message: `Profile not found`,
         });
       }
+
+      verifyProfileOwnership(profile, ctx.userId);
 
       const skills = [...(profile.skills || []), input.skill];
       return ctx.profileRepository.update(input.profileId, { skills });
@@ -262,6 +268,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId);
+
       const skills = (profile.skills || []).filter(s => s.name !== input.skillName);
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
@@ -286,6 +294,8 @@ export const profileRouter = router({
           message: `Profile not found`,
         });
       }
+
+      verifyProfileOwnership(profile, ctx.userId);
 
       const experience = [...(profile.experience || []), input.experience];
       return ctx.profileRepository.update(input.profileId, { experience });
@@ -312,6 +322,8 @@ export const profileRouter = router({
           message: `Profile not found`,
         });
       }
+
+      verifyProfileOwnership(profile, ctx.userId);
 
       const experience = (profile.experience || []).map(exp =>
         exp.id === input.experienceId ? { ...exp, ...input.experience } : exp
@@ -340,6 +352,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId);
+
       const experience = (profile.experience || []).filter(e => e.id !== input.experienceId);
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
@@ -364,6 +378,8 @@ export const profileRouter = router({
           message: `Profile not found`,
         });
       }
+
+      verifyProfileOwnership(profile, ctx.userId);
 
       const education = [...(profile.education || []), input.education];
       return ctx.profileRepository.update(input.profileId, { education });
@@ -390,6 +406,8 @@ export const profileRouter = router({
           message: `Profile not found`,
         });
       }
+
+      verifyProfileOwnership(profile, ctx.userId);
 
       const education = (profile.education || []).map(edu =>
         edu.id === input.educationId ? { ...edu, ...input.education } : edu
@@ -418,6 +436,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId);
+
       const education = (profile.education || []).filter(e => e.id !== input.educationId);
       return ctx.profileRepository.update(input.profileId, { education });
     }),
@@ -442,6 +462,8 @@ export const profileRouter = router({
           message: `Profile not found`,
         });
       }
+
+      verifyProfileOwnership(profile, ctx.userId);
 
       const projects = [...(profile.projects || []), input.project];
       return ctx.profileRepository.update(input.profileId, { projects });
@@ -468,6 +490,8 @@ export const profileRouter = router({
         });
       }
 
+      verifyProfileOwnership(profile, ctx.userId);
+
       const certifications = [...(profile.certifications || []), input.certification];
       return ctx.profileRepository.update(input.profileId, { certifications });
     }),
@@ -485,6 +509,12 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId);
+
       return ctx.profileRepository.update(input.profileId, {
         resumeContent: input.resumeContent,
         resumePath: input.resumePath,
@@ -504,6 +534,12 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+      if (!profile) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Profile not found' });
+      }
+      verifyProfileOwnership(profile, ctx.userId);
+
       return ctx.profileRepository.update(input.profileId, {
         coverLetterTemplate: input.coverLetterTemplate,
       });
@@ -529,6 +565,8 @@ export const profileRouter = router({
             message: `Profile with ID ${input.profileId} not found`,
           });
         }
+
+        verifyProfileOwnership(profile, ctx.userId);
 
         return ctx.profileRepository.update(input.profileId, {
           resumePath: input.resumePath,
@@ -558,6 +596,14 @@ export const profileRouter = router({
         });
       }
 
+      // Users can duplicate their own profiles or orphaned profiles
+      if (profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to duplicate this profile',
+        });
+      }
+
       // Create a copy of the profile
       const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile;
 
@@ -570,7 +616,6 @@ export const profileRouter = router({
         profileData.firstName = `${profileData.firstName} (Copy)`;
       }
 
-      const newUserId = ctx.userId === ANONYMOUS_USER_ID ? undefined : ctx.userId;
-      return ctx.profileRepository.create(profileData, newUserId);
+      return ctx.profileRepository.create(profileData, ctx.userId);
     }),
 });
