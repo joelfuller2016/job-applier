@@ -188,8 +188,9 @@ export const profileRouter = router({
 
   /**
    * Update profile contact information
+   * SECURITY: Requires authentication
    */
-  updateContactInfo: publicProcedure
+  updateContactInfo: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -202,8 +203,9 @@ export const profileRouter = router({
 
   /**
    * Update profile job preferences
+   * SECURITY: Requires authentication
    */
-  updatePreferences: publicProcedure
+  updatePreferences: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -216,8 +218,9 @@ export const profileRouter = router({
 
   /**
    * Add a skill to profile
+   * SECURITY: Requires authentication
    */
-  addSkill: publicProcedure
+  addSkill: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -240,8 +243,9 @@ export const profileRouter = router({
 
   /**
    * Remove a skill from profile
+   * SECURITY: Requires authentication
    */
-  removeSkill: publicProcedure
+  removeSkill: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -264,8 +268,9 @@ export const profileRouter = router({
 
   /**
    * Add work experience
+   * SECURITY: Requires authentication
    */
-  addExperience: publicProcedure
+  addExperience: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -288,8 +293,9 @@ export const profileRouter = router({
 
   /**
    * Update work experience
+   * SECURITY: Requires authentication
    */
-  updateExperience: publicProcedure
+  updateExperience: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -315,8 +321,9 @@ export const profileRouter = router({
 
   /**
    * Remove work experience
+   * SECURITY: Requires authentication
    */
-  removeExperience: publicProcedure
+  removeExperience: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -339,8 +346,9 @@ export const profileRouter = router({
 
   /**
    * Add education
+   * SECURITY: Requires authentication
    */
-  addEducation: publicProcedure
+  addEducation: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -363,8 +371,9 @@ export const profileRouter = router({
 
   /**
    * Update education
+   * SECURITY: Requires authentication
    */
-  updateEducation: publicProcedure
+  updateEducation: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -390,8 +399,9 @@ export const profileRouter = router({
 
   /**
    * Remove education
+   * SECURITY: Requires authentication
    */
-  removeEducation: publicProcedure
+  removeEducation: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -414,8 +424,9 @@ export const profileRouter = router({
 
   /**
    * Add project
+   * SECURITY: Requires authentication
    */
-  addProject: publicProcedure
+  addProject: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -438,8 +449,9 @@ export const profileRouter = router({
 
   /**
    * Add certification
+   * SECURITY: Requires authentication
    */
-  addCertification: publicProcedure
+  addCertification: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -462,8 +474,9 @@ export const profileRouter = router({
 
   /**
    * Update resume content
+   * SECURITY: Requires authentication
    */
-  updateResumeContent: publicProcedure
+  updateResumeContent: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -481,8 +494,9 @@ export const profileRouter = router({
 
   /**
    * Update cover letter template
+   * SECURITY: Requires authentication
    */
-  updateCoverLetterTemplate: publicProcedure
+  updateCoverLetterTemplate: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -497,8 +511,9 @@ export const profileRouter = router({
 
   /**
    * Import resume and create/update profile
+   * SECURITY: Requires authentication
    */
-  importResume: publicProcedure
+  importResume: protectedProcedure
     .input(
       z.object({
         resumePath: z.string(),
@@ -529,8 +544,9 @@ export const profileRouter = router({
 
   /**
    * Duplicate a profile
+   * SECURITY: Requires authentication
    */
-  duplicateProfile: publicProcedure
+  duplicateProfile: protectedProcedure
     .input(z.object({ id: z.string(), newName: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const profile = ctx.profileRepository.findById(input.id);

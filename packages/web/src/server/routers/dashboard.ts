@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { router, publicProcedure } from '../trpc';
+import { router, protectedProcedure } from '../trpc';
 
 /**
  * Dashboard router for overview and stats
@@ -12,8 +12,9 @@ import { router, publicProcedure } from '../trpc';
 export const dashboardRouter = router({
   /**
    * Get dashboard overview data
+   * SECURITY: Requires authentication to view user's dashboard data
    */
-  getOverview: publicProcedure
+  getOverview: protectedProcedure
     .input(
       z.object({
         profileId: z.string().optional(),
@@ -43,24 +44,27 @@ export const dashboardRouter = router({
 
       // Get recent applications for activity feed
       const recentApplications = await ctx.applicationRepository.findByProfile(profile.id);
-      const recentActivity = await Promise.all(
-        recentApplications.slice(0, 10).map(async (app) => {
-          // Get job details for the application
-          const job = await ctx.jobRepository.findById(app.jobId);
-          const company = job?.company || 'Unknown Company';
-          const jobTitle = job?.title || 'Unknown Position';
+      const topApplications = recentApplications.slice(0, 10);
 
-          return {
-            id: app.id,
-            type: app.status === 'submitted' ? 'application_sent' as const : 'job_discovered' as const,
-            title: app.status === 'submitted'
-              ? `Application sent to ${company}`
-              : `Discovered ${jobTitle} at ${company}`,
-            description: jobTitle,
-            timestamp: app.createdAt,
-          };
-        })
-      );
+      // Bulk fetch jobs to avoid N+1 query
+      const jobIds = topApplications.map(app => app.jobId);
+      const jobsMap = ctx.jobRepository.findByIds(jobIds);
+
+      const recentActivity = topApplications.map((app) => {
+        const job = jobsMap.get(app.jobId);
+        const company = job?.company || 'Unknown Company';
+        const jobTitle = job?.title || 'Unknown Position';
+
+        return {
+          id: app.id,
+          type: app.status === 'submitted' ? 'application_sent' as const : 'job_discovered' as const,
+          title: app.status === 'submitted'
+            ? `Application sent to ${company}`
+            : `Discovered ${jobTitle} at ${company}`,
+          description: jobTitle,
+          timestamp: app.createdAt,
+        };
+      });
 
       // Calculate success rate
       const totalApplications = stats.total || 1; // Avoid division by zero
@@ -86,8 +90,9 @@ export const dashboardRouter = router({
 
   /**
    * Get recent activity
+   * SECURITY: Requires authentication to view user's activity
    */
-  getRecentActivity: publicProcedure
+  getRecentActivity: protectedProcedure
     .input(
       z.object({
         profileId: z.string().optional(),

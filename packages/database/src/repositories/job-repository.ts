@@ -97,6 +97,34 @@ export class JobRepository {
   }
 
   /**
+   * Find multiple jobs by IDs (bulk fetch to avoid N+1 queries)
+   */
+  findByIds(ids: string[]): Map<string, JobListing> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+
+    try {
+      const placeholders = ids.map(() => '?').join(',');
+      const rows = all<Record<string, unknown>>(
+        `SELECT * FROM jobs WHERE id IN (${placeholders})`,
+        ids
+      );
+
+      const result = new Map<string, JobListing>();
+      for (const row of rows) {
+        const job = this.rowToJob(row);
+        result.set(job.id, job);
+      }
+      return result;
+    } catch (error) {
+      throw new DatabaseError(
+        `Failed to find jobs by IDs: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
    * Find a job by external ID and platform
    */
   findByExternalId(platform: JobPlatform, externalId: string): JobListing | null {
