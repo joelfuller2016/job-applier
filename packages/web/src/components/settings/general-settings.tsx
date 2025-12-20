@@ -49,6 +49,7 @@ const defaultValues: GeneralSettingsValues = {
   applicationDelay: 5,
 };
 
+const STORAGE_KEY = 'job-applier.generalSettings';
 const DEFAULT_MIN_DELAY_MS = 5000;
 const DELAY_MULTIPLIER = 2.5;
 
@@ -83,6 +84,27 @@ export function GeneralSettings() {
   }, [settingsQuery.data]);
 
   React.useEffect(() => {
+    const storedSettings = localStorage.getItem(STORAGE_KEY);
+    if (!storedSettings) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedSettings);
+      const result = generalSettingsSchema.safeParse(parsed);
+      if (result.success) {
+        form.reset({
+          ...defaultValues,
+          ...result.data,
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to parse stored general settings', error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
     if (!settingsQuery.isError) return;
 
     toast({
@@ -95,6 +117,19 @@ export function GeneralSettings() {
   const adminConfigured = adminStatusQuery.data?.adminConfigured ?? false;
   const isAdmin = adminStatusQuery.data?.isAdmin ?? false;
   const isReadOnly = adminStatusQuery.isLoading || !isAdmin;
+
+  const handleResetToDefaults = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (storageError) {
+      console.warn('Failed to clear settings from localStorage', storageError);
+    }
+    form.reset(defaultValues);
+    toast({
+      title: 'Settings reset',
+      description: 'Settings have been reset to default values.',
+    });
+  };
 
   const onSubmit = async (data: GeneralSettingsValues) => {
     if (!isAdmin) {
@@ -132,6 +167,17 @@ export function GeneralSettings() {
           maxDelayBetweenActions: maxDelayMs,
         },
       });
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (storageError) {
+        console.error('Failed to save settings to localStorage:', storageError);
+        toast({
+          title: 'Warning',
+          description: 'Settings could not be saved locally. They will reset on page reload.',
+          variant: 'destructive',
+        });
+      }
 
       toast({
         title: 'Settings saved',
@@ -333,18 +379,28 @@ export function GeneralSettings() {
               </div>
             </fieldset>
 
-            <Button
-              type="submit"
-              disabled={
-                settingsQuery.isLoading ||
-                settingsQuery.isError ||
-                adminStatusQuery.isLoading ||
-                !isAdmin ||
-                updateSettingsMutation.isLoading
-              }
-            >
-              {updateSettingsMutation.isLoading ? 'Saving...' : 'Save Changes'}
-            </Button>
+            <div className="flex gap-4">
+              <Button
+                type="submit"
+                disabled={
+                  settingsQuery.isLoading ||
+                  settingsQuery.isError ||
+                  adminStatusQuery.isLoading ||
+                  !isAdmin ||
+                  updateSettingsMutation.isLoading
+                }
+              >
+                {updateSettingsMutation.isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleResetToDefaults}
+                disabled={isReadOnly}
+              >
+                Reset to Defaults
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
