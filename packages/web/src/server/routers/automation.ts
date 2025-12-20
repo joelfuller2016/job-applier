@@ -37,7 +37,7 @@ type AutomationSession = z.infer<typeof AutomationSessionSchema>;
 const activeSessions: Map<string, AutomationSession> = new Map();
 
 function getUserSession(userId: string): AutomationSession | null {
-  for (const session of activeSessions.values()) {
+  for (const session of Array.from(activeSessions.values())) {
     if (session.userId === userId && session.status === 'active') {
       return session;
     }
@@ -144,7 +144,7 @@ export const automationRouter = router({
   getSessions: protectedProcedure
     .input(z.object({ limit: z.number().default(10), offset: z.number().default(0) }))
     .query(async ({ ctx, input }) => {
-      const userSessions = [...activeSessions.values()].filter(s => s.userId === ctx.userId);
+      const userSessions = Array.from(activeSessions.values()).filter(s => s.userId === ctx.userId);
       return { sessions: userSessions.slice(input.offset, input.offset + input.limit), total: userSessions.length };
     }),
 

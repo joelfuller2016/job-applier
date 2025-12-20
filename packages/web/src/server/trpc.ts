@@ -62,7 +62,7 @@ class RateLimiter {
 
   private cleanup(): void {
     const now = Date.now();
-    for (const [key, record] of this.requests.entries()) {
+    for (const [key, record] of Array.from(this.requests.entries())) {
       if (now - record.windowStart >= this.windowMs * 2) {
         this.requests.delete(key);
       }
@@ -83,17 +83,44 @@ const mutationRateLimiter = new RateLimiter(60000, 30);  // 30 mutations/min
 const aiRateLimiter = new RateLimiter(60000, 10);        // 10 AI calls/min
 
 /**
+ * Determine if we're in production environment
+ */
+const isProduction = process.env.NODE_ENV === 'production';
+
+/**
  * Initialize tRPC with context
+ *
+ * SECURITY: Error formatter sanitizes responses to prevent information leakage
+ * - In production: Only return safe error codes and messages, no stack traces
+ * - In development: Include full error details for debugging
  */
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    // In production, sanitize error responses to prevent stack trace exposure
+    if (isProduction) {
+      return {
+        ...shape,
+        data: {
+          ...shape.data,
+          // Only include Zod validation errors (safe to expose)
+          zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
+          // Never include stack traces in production
+          stack: undefined,
+        },
+        // Sanitize the message for internal errors
+        message: error.code === 'INTERNAL_SERVER_ERROR'
+          ? 'An unexpected error occurred. Please try again later.'
+          : shape.message,
+      };
+    }
+
+    // In development, include full error details for debugging
     return {
       ...shape,
       data: {
         ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
   },
@@ -129,9 +156,9 @@ export const authMiddleware = t.middleware(async ({ ctx, next }) => {
  */
 function getRateLimitKey(ctx: Context): string {
   if (ctx.userId && ctx.userId !== ANONYMOUS_USER_ID) {
-    return \`user:\${ctx.userId}\`;
+    return `user:${ctx.userId}`;
   }
-  return \`anon:\${ctx.userId || 'unknown'}\`;
+  return `anon:${ctx.userId || 'unknown'}`;
 }
 
 /**
@@ -145,7 +172,7 @@ function createRateLimitMiddleware(limiter: RateLimiter, limitType: string) {
     if (!result.allowed) {
       throw new TRPCError({
         code: 'TOO_MANY_REQUESTS',
-        message: \`Rate limit exceeded for \${limitType}. Try again in \${Math.ceil((result.resetAt - Date.now()) / 1000)} seconds.\`,
+        message: `Rate limit exceeded for ${limitType}. Try again in ${Math.ceil((result.resetAt - Date.now()) / 1000)} seconds.`,
       });
     }
 
@@ -224,9 +251,9 @@ export const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
   const durationMs = Date.now() - start;
 
   if (result.ok) {
-    console.log(\`[tRPC] \${type} \${path} - \${durationMs}ms\`);
+    console.log(`[tRPC] ${type} ${path} - ${durationMs}ms`);
   } else {
-    console.error(\`[tRPC] \${type} \${path} - \${durationMs}ms - ERROR:\`, result.error);
+    console.error(`[tRPC] ${type} ${path} - ${durationMs}ms - ERROR:`, result.error);
   }
 
   return result;

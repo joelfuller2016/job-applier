@@ -1,12 +1,49 @@
 /**
  * Applications Router
  * Handles job application operations
+ *
+ * SECURITY: All mutations verify application ownership through profile
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { ApplicationStatus, ApplicationStatusSchema } from '@job-applier/core';
+import { ANONYMOUS_USER_ID } from '../../lib/constants';
+
+/**
+ * Helper to verify application ownership through profile
+ * SECURITY: Prevents IDOR attacks by ensuring user owns the application
+ */
+function verifyApplicationOwnership(
+  ctx: { applicationRepository: any; profileRepository: any; userId: string },
+  applicationId: string
+): { application: any; profile: any } {
+  const application = ctx.applicationRepository.findById(applicationId);
+  if (!application) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: `Application with ID ${applicationId} not found`,
+    });
+  }
+
+  const profile = ctx.profileRepository.findById(application.profileId);
+  if (!profile) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Associated profile not found',
+    });
+  }
+
+  if (profile.userId && profile.userId !== ctx.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to modify this application',
+    });
+  }
+
+  return { application, profile };
+}
 
 /**
  * Applications router for tracking job applications
@@ -14,6 +51,7 @@ import { ApplicationStatus, ApplicationStatusSchema } from '@job-applier/core';
 export const applicationsRouter = router({
   /**
    * List applications with filters
+   * SECURITY: Only returns applications from user's own profiles
    */
   list: publicProcedure
     .input(
@@ -23,6 +61,17 @@ export const applicationsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      // For authenticated users, verify profile ownership if profileId specified
+      if (input.profileId && ctx.userId !== ANONYMOUS_USER_ID) {
+        const profile = ctx.profileRepository.findById(input.profileId);
+        if (profile && profile.userId && profile.userId !== ctx.userId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have access to this profile',
+          });
+        }
+      }
+
       if (input.status) {
         return ctx.applicationRepository.findByStatus(input.status as ApplicationStatus);
       }
@@ -73,7 +122,7 @@ export const applicationsRouter = router({
 
   /**
    * Update application status
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication and ownership verification
    */
   updateStatus: protectedProcedure
     .input(
@@ -84,6 +133,9 @@ export const applicationsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify ownership before update
+      verifyApplicationOwnership(ctx, input.id);
+
       const updated = ctx.applicationRepository.updateStatus(
         input.id,
         input.status as ApplicationStatus,
@@ -102,7 +154,7 @@ export const applicationsRouter = router({
 
   /**
    * Add a note/event to an application
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication and ownership verification
    */
   addNote: protectedProcedure
     .input(
@@ -123,14 +175,8 @@ export const applicationsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify application exists
-      const application = ctx.applicationRepository.findById(input.applicationId);
-      if (!application) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Application with ID ${input.applicationId} not found`,
-        });
-      }
+      // Verify ownership before adding note
+      verifyApplicationOwnership(ctx, input.applicationId);
 
       const event = ctx.applicationRepository.addEvent(input.applicationId, {
         type: input.type,
@@ -143,7 +189,7 @@ export const applicationsRouter = router({
 
   /**
    * Mark application as submitted
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication and ownership verification
    */
   markSubmitted: protectedProcedure
     .input(
@@ -153,6 +199,9 @@ export const applicationsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify ownership before marking submitted
+      verifyApplicationOwnership(ctx, input.id);
+
       const updated = ctx.applicationRepository.markSubmitted(
         input.id,
         input.platformApplicationId

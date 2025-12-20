@@ -9,6 +9,7 @@ import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { UserProfileSchema, JobPreferencesSchema, ContactInfoSchema, SkillSchema, WorkExperienceSchema, EducationSchema, CertificationSchema, ProjectSchema } from '@job-applier/core';
 import { ANONYMOUS_USER_ID } from '../../lib/constants';
 
+/** * Helper to verify profile ownership * SECURITY: Prevents IDOR attacks by ensuring user owns the profile */function verifyProfileOwnership(  ctx: { profileRepository: any; userId: string },  profileId: string): any {  const profile = ctx.profileRepository.findById(profileId);  if (!profile) {    throw new TRPCError({      code: 'NOT_FOUND',      message: 'Profile not found',    });  }  if (!profile.userId) {    throw new TRPCError({      code: 'FORBIDDEN',      message: 'This profile has no owner and cannot be modified.',    });  }  if (profile.userId !== ctx.userId) {    throw new TRPCError({      code: 'FORBIDDEN',      message: 'You do not have permission to modify this profile',    });  }  return profile;}
 /**
  * Extended profile schema with additional fields
  */
@@ -198,6 +199,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      verifyProfileOwnership(ctx, input.id);
       return ctx.profileRepository.update(input.id, { contact: input.contact });
     }),
 
@@ -213,6 +215,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      verifyProfileOwnership(ctx, input.id);
       return ctx.profileRepository.update(input.id, { preferences: input.preferences });
     }),
 
