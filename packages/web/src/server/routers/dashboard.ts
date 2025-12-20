@@ -27,7 +27,7 @@ export const dashboardRouter = router({
         ? ctx.profileRepository.findById(input.profileId)
         : ctx.profileRepository.getDefaultForUser(ctx.userId);
 
-      if (profile?.userId && profile.userId !== ctx.userId) {
+      if (profile && profile.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'You do not have access to this profile.',
@@ -112,7 +112,7 @@ export const dashboardRouter = router({
         ? ctx.profileRepository.findById(input.profileId)
         : ctx.profileRepository.getDefaultForUser(ctx.userId);
 
-      if (profile?.userId && profile.userId !== ctx.userId) {
+      if (profile && profile.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'You do not have access to this profile.',
