@@ -4,7 +4,31 @@
  */
 
 import { z } from 'zod';
-import { router, publicProcedure } from '../trpc';
+import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure } from '../trpc';
+import { ANONYMOUS_USER_ID } from '../../lib/constants';
+
+/**
+ * Helper function to verify profile ownership
+ * SECURITY: Throws FORBIDDEN if user doesn't own the profile
+ */
+function verifyProfileOwnership(
+  profile: { userId?: string | null },
+  userId: string
+) {
+  if (!profile.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'This profile has no owner and cannot be accessed.',
+    });
+  }
+  if (profile.userId !== userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to view this dashboard',
+    });
+  }
+}
 
 /**
  * Dashboard router for overview and stats
@@ -12,18 +36,19 @@ import { router, publicProcedure } from '../trpc';
 export const dashboardRouter = router({
   /**
    * Get dashboard overview data
+   * SECURITY: Requires authentication to view user's dashboard data
    */
-  getOverview: publicProcedure
+  getOverview: protectedProcedure
     .input(
       z.object({
         profileId: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      // Get default profile if not specified
+      // Get user's profile - either specified or their default
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
 
       if (!profile) {
         return {
@@ -37,6 +62,9 @@ export const dashboardRouter = router({
           activeHunts: [],
         };
       }
+
+      // SECURITY: Verify the user owns this profile
+      verifyProfileOwnership(profile, ctx.userId);
 
       // Get application stats
       const stats = await ctx.applicationRepository.getStats(profile.id);
@@ -86,8 +114,9 @@ export const dashboardRouter = router({
 
   /**
    * Get recent activity
+   * SECURITY: Requires authentication to view user's activity
    */
-  getRecentActivity: publicProcedure
+  getRecentActivity: protectedProcedure
     .input(
       z.object({
         profileId: z.string().optional(),
@@ -95,13 +124,17 @@ export const dashboardRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      // Get user's profile - either specified or their default
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
 
       if (!profile) {
         return [];
       }
+
+      // SECURITY: Verify the user owns this profile
+      verifyProfileOwnership(profile, ctx.userId);
 
       const applications = await ctx.applicationRepository.findByProfile(profile.id);
 

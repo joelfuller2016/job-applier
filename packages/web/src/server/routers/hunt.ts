@@ -5,7 +5,30 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
+
+/**
+ * Helper function to verify profile ownership
+ * SECURITY: Throws FORBIDDEN if user doesn't own the profile
+ */
+function verifyProfileOwnership(
+  profile: { userId?: string | null },
+  userId: string,
+  action: string = 'use'
+) {
+  if (!profile.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'This profile has no owner and cannot be used for job hunting.',
+    });
+  }
+  if (profile.userId !== userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to use this profile',
+    });
+  }
+}
 
 /**
  * Hunt router for automated job hunting
@@ -13,8 +36,9 @@ import { router, publicProcedure } from '../trpc';
 export const huntRouter = router({
   /**
    * Start a new job hunt
+   * SECURITY: Requires authentication and profile ownership
    */
-  startHunt: publicProcedure
+  startHunt: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -38,6 +62,9 @@ export const huntRouter = router({
           message: `Profile with ID ${input.profileId} not found`,
         });
       }
+
+      // SECURITY: Verify the user owns this profile
+      verifyProfileOwnership(profile, ctx.userId);
 
       // Start hunt (this will be long-running, consider making it async with status tracking)
       const result = await ctx.orchestrator.hunt(
@@ -75,8 +102,9 @@ export const huntRouter = router({
 
   /**
    * Quick apply to a specific company/job
+   * SECURITY: Requires authentication and profile ownership
    */
-  quickApply: publicProcedure
+  quickApply: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -93,6 +121,9 @@ export const huntRouter = router({
           message: `Profile with ID ${input.profileId} not found`,
         });
       }
+
+      // SECURITY: Verify the user owns this profile
+      verifyProfileOwnership(profile, ctx.userId);
 
       const result = await ctx.orchestrator.quickApply(
         input.company,
@@ -114,7 +145,7 @@ export const huntRouter = router({
   getHuntStatus: publicProcedure
     .input(z.object({ sessionId: z.string() }))
     .query(async ({ input }) => {
-      // TODO: Implement hunt status tracking
+      // TODO: Implement hunt status tracking with user filtering
       // This would query a hunt sessions table or in-memory store
       return {
         sessionId: input.sessionId,
@@ -134,7 +165,7 @@ export const huntRouter = router({
       })
     )
     .query(async () => {
-      // TODO: Implement hunt history tracking
+      // TODO: Implement hunt history tracking with user filtering
       // This would query a hunt sessions table
       return [];
     }),

@@ -19,6 +19,17 @@ const ExtendedProfileInputSchema = UserProfileSchema.omit({ id: true, createdAt:
 });
 
 /**
+ * Map of action verbs to their past tense forms for error messages
+ */
+const ACTION_PAST_TENSE: Record<string, string> = {
+  modify: 'modified',
+  delete: 'deleted',
+  duplicate: 'duplicated',
+  access: 'accessed',
+  use: 'used',
+};
+
+/**
  * Helper function to verify profile ownership
  * SECURITY: Throws FORBIDDEN if user doesn't own the profile
  */
@@ -27,10 +38,12 @@ function verifyProfileOwnership(
   userId: string,
   action: string = 'modify'
 ) {
+  const pastTense = ACTION_PAST_TENSE[action] || `${action}d`;
+  
   if (!profile.userId) {
     throw new TRPCError({
       code: 'FORBIDDEN',
-      message: `This profile has no owner and cannot be ${action}ed.`,
+      message: `This profile has no owner and cannot be ${pastTense}.`,
     });
   }
   if (profile.userId !== userId) {
@@ -269,13 +282,6 @@ export const profileRouter = router({
       }
 
       verifyProfileOwnership(profile, ctx.userId, 'modify');
-
-      // Ownership verified
-      if (false) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-        });
-      }
 
       const skills = [...(profile.skills || []), input.skill];
       return ctx.profileRepository.update(input.profileId, { skills });
