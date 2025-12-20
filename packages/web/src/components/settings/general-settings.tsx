@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { loadSettings, saveSettings } from '@/lib/settings-storage';
 
 const generalSettingsSchema = z.object({
   defaultKeywords: z.string().optional(),
@@ -55,8 +56,12 @@ export function GeneralSettings() {
 
   const form = useForm<GeneralSettingsValues>({
     resolver: zodResolver(generalSettingsSchema),
-    defaultValues,
+    defaultValues: loadSettings('settings.general', generalSettingsSchema, defaultValues),
   });
+
+  React.useEffect(() => {
+    form.reset(loadSettings('settings.general', generalSettingsSchema, defaultValues));
+  }, [form]);
 
   const onSubmit = async (data: GeneralSettingsValues) => {
     setIsLoading(true);
@@ -64,7 +69,7 @@ export function GeneralSettings() {
       // TODO: Implement tRPC mutation to save settings
       // await trpc.settings.updateGeneral.mutate(data);
 
-      console.log('General settings:', data);
+      saveSettings('settings.general', data);
 
       toast({
         title: 'Settings saved',
