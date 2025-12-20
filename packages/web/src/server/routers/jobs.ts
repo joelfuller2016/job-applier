@@ -19,7 +19,7 @@ import { JobSearchQuery } from '@job-applier/core';
  * @throws TRPCError NOT_FOUND if job or profile doesn't exist
  * @throws TRPCError FORBIDDEN if user has no application for the job
  */
-async function verifyJobAccess(
+function verifyJobAccess(
   ctx: {
     profileRepository: {
       getDefaultForUser: (userId: string) => { id: string; userId?: string | null } | null;
@@ -157,8 +157,8 @@ export const jobsRouter = router({
 
       if (!updated) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to update job',
+          code: 'NOT_FOUND',
+          message: 'Job not found or was deleted',
         });
       }
 
@@ -179,8 +179,8 @@ export const jobsRouter = router({
 
       if (!deleted) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to delete job',
+          code: 'NOT_FOUND',
+          message: 'Job not found or was already deleted',
         });
       }
 
