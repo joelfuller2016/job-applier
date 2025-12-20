@@ -3,7 +3,8 @@
  * Provides Google OAuth authentication
  */
 
-import { AuthOptions, DefaultSession, Provider } from 'next-auth';
+import { AuthOptions, DefaultSession } from 'next-auth';
+import type { Provider } from 'next-auth/providers/index';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
@@ -19,15 +20,22 @@ const isDemoAuthEnabled = (): boolean => {
 /**
  * Get NextAuth secret with production safety check
  * SECURITY: Secret MUST be provided in production via environment variable
+ * Note: NEXT_PHASE check allows builds to complete; actual secret is validated at runtime
  */
 const getAuthSecret = (): string => {
   const secret = process.env.NEXTAUTH_SECRET;
+  const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
 
-  if (!secret && process.env.NODE_ENV === 'production') {
+  if (!secret && process.env.NODE_ENV === 'production' && !isBuilding) {
     throw new Error(
       'NEXTAUTH_SECRET environment variable is required in production. ' +
       'Generate one with: openssl rand -base64 32'
     );
+  }
+
+  // For builds, return placeholder; actual runtime will require real secret
+  if (!secret && isBuilding) {
+    return 'build-time-placeholder-not-used-at-runtime';
   }
 
   return secret || 'development-only-secret-not-for-production';
