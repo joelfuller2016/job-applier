@@ -1,6 +1,8 @@
 /**
  * Automation Router
  * Handles automation control and status endpoints
+ * 
+ * SECURITY: All mutations require authentication via protectedProcedure
  */
 
 import { z } from 'zod';
@@ -83,7 +85,7 @@ export const automationRouter = router({
 
   /**
    * Start automation
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication - prevents unauthorized automation
    */
   start: protectedProcedure
     .input(
