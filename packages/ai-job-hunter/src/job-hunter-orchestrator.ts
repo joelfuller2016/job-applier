@@ -99,44 +99,48 @@ export class JobHunterOrchestrator {
         this.log(callbacks, 'Phase 3: Applying to jobs...');
         await this.browserManager.launch();
 
-        for (const job of matchedJobs) {
-          // Check confirmation
-          if (config.requireConfirmation) {
-            const confirmed = callbacks.onConfirmationRequired
-              ? await callbacks.onConfirmationRequired(job)
-              : true;
+        try {
+          for (const job of matchedJobs) {
+            // Check confirmation
+            if (config.requireConfirmation) {
+              const confirmed = callbacks.onConfirmationRequired
+                ? await callbacks.onConfirmationRequired(job)
+                : true;
 
-            if (!confirmed) {
-              result.applications.push({
-                jobId: job.id,
-                companyName: job.company,
-                jobTitle: job.title,
-                url: job.url,
-                status: 'skipped',
-                message: 'Skipped by user',
-              });
-              continue;
+              if (!confirmed) {
+                result.applications.push({
+                  jobId: job.id,
+                  companyName: job.company,
+                  jobTitle: job.title,
+                  url: job.url,
+                  status: 'skipped',
+                  message: 'Skipped by user',
+                });
+                continue;
+              }
             }
+
+            // Apply
+            callbacks.onApplicationStart?.(job);
+            const attempt = await this.applyToJob(job, userProfile, callbacks);
+            result.applications.push(attempt);
+            callbacks.onApplicationComplete?.(attempt);
+
+            if (attempt.status === 'success') {
+              result.applicationsSuccessful++;
+            } else if (attempt.status === 'failed') {
+              result.applicationsFailed++;
+            }
+            result.applicationsAttempted++;
+
+            // Delay between applications
+            await this.delay(3000, 5000);
           }
-
-          // Apply
-          callbacks.onApplicationStart?.(job);
-          const attempt = await this.applyToJob(job, userProfile, callbacks);
-          result.applications.push(attempt);
-          callbacks.onApplicationComplete?.(attempt);
-
-          if (attempt.status === 'success') {
-            result.applicationsSuccessful++;
-          } else if (attempt.status === 'failed') {
-            result.applicationsFailed++;
-          }
-          result.applicationsAttempted++;
-
-          // Delay between applications
-          await this.delay(3000, 5000);
+        } finally {
+          await this.browserManager.close().catch((err: unknown) =>
+            console.warn('[JobHunter] Failed to close browser:', err)
+          );
         }
-
-        await this.browserManager.close();
       }
 
       result.completedAt = new Date().toISOString();
@@ -176,38 +180,42 @@ export class JobHunterOrchestrator {
       await this.browserManager.launch();
       const page = await this.browserManager.newPage();
 
-      for (const companyName of config.includeCompanies) {
-        try {
-          this.log(callbacks, `Searching ${companyName}...`);
+      try {
+        for (const companyName of config.includeCompanies) {
+          try {
+            this.log(callbacks, `Searching ${companyName}...`);
 
-          // Find company careers page
-          const careersUrl = await this.analyzer.findCareersPage(companyName);
-          if (!careersUrl) {
-            this.log(callbacks, `Could not find careers page for ${companyName}`);
-            continue;
+            // Find company careers page
+            const careersUrl = await this.analyzer.findCareersPage(companyName);
+            if (!careersUrl) {
+              this.log(callbacks, `Could not find careers page for ${companyName}`);
+              continue;
+            }
+
+            const company: Company = {
+              name: companyName,
+              careersUrl,
+            };
+
+            const companyJobs = await this.discovery.scrapeCompanyCareersPage(
+              page,
+              company,
+              config.searchQuery
+            );
+
+            for (const job of companyJobs) {
+              callbacks.onJobDiscovered?.(job);
+              jobs.push(job);
+            }
+          } catch (error) {
+            this.log(callbacks, `Failed to search ${companyName}: ${error}`);
           }
-
-          const company: Company = {
-            name: companyName,
-            careersUrl,
-          };
-
-          const companyJobs = await this.discovery.scrapeCompanyCareersPage(
-            page,
-            company,
-            config.searchQuery
-          );
-
-          for (const job of companyJobs) {
-            callbacks.onJobDiscovered?.(job);
-            jobs.push(job);
-          }
-        } catch (error) {
-          this.log(callbacks, `Failed to search ${companyName}: ${error}`);
         }
+      } finally {
+        await page.close().catch((err: unknown) =>
+          console.warn('[JobHunter] Failed to close page:', err)
+        );
       }
-
-      await page.close();
     }
 
     return jobs;
@@ -237,8 +245,13 @@ export class JobHunterOrchestrator {
         // Get job details if description is short
         if (job.description.length < 200) {
           const page = await this.browserManager.newPage();
-          await this.discovery.getJobDetails(page, job);
-          await page.close();
+          try {
+            await this.discovery.getJobDetails(page, job);
+          } finally {
+            await page.close().catch((err: unknown) =>
+              console.warn('[JobHunter] Failed to close page:', err)
+            );
+          }
         }
 
         // Analyze match
@@ -432,19 +445,23 @@ export class JobHunterOrchestrator {
 
       // Find specific job
       const page = await this.browserManager.newPage();
-      await page.goto(careersUrl, { waitUntil: 'networkidle' });
-      await this.delay(2000, 3000);
+      try {
+        await page.goto(careersUrl, { waitUntil: 'networkidle' });
+        await this.delay(2000, 3000);
 
-      // Search for the job
-      const discoveredCompany: Company = { name: company, careersUrl };
-      const jobs = await this.discovery.scrapeCompanyCareersPage(page, discoveredCompany, jobTitle);
+        // Search for the job
+        const discoveredCompany: Company = { name: company, careersUrl };
+        const jobs = await this.discovery.scrapeCompanyCareersPage(page, discoveredCompany, jobTitle);
 
-      if (jobs.length > 0) {
-        // Use first matching job
-        Object.assign(job, jobs[0]);
+        if (jobs.length > 0) {
+          // Use first matching job
+          Object.assign(job, jobs[0]);
+        }
+      } finally {
+        await page.close().catch((err: unknown) =>
+          console.warn('[JobHunter] Failed to close page:', err)
+        );
       }
-
-      await page.close();
 
       // Apply
       callbacks.onApplicationStart?.(job);
@@ -454,7 +471,9 @@ export class JobHunterOrchestrator {
       return attempt;
 
     } finally {
-      await this.browserManager.close();
+      await this.browserManager.close().catch((err: unknown) =>
+        console.warn('[JobHunter] Failed to close browser:', err)
+      );
     }
   }
 }
