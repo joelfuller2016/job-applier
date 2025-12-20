@@ -24,8 +24,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { trpc } from '@/lib/trpc/react';
 
 const generalSettingsSchema = z.object({
   defaultKeywords: z.string().optional(),
@@ -51,20 +51,23 @@ const defaultValues: GeneralSettingsValues = {
 
 export function GeneralSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
+  const generalSettingsQuery = trpc.settings.getGeneral.useQuery();
+  const updateGeneralMutation = trpc.settings.updateGeneral.useMutation();
 
   const form = useForm<GeneralSettingsValues>({
     resolver: zodResolver(generalSettingsSchema),
     defaultValues,
   });
 
-  const onSubmit = async (data: GeneralSettingsValues) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement tRPC mutation to save settings
-      // await trpc.settings.updateGeneral.mutate(data);
+  React.useEffect(() => {
+    if (generalSettingsQuery.data) {
+      form.reset(generalSettingsQuery.data);
+    }
+  }, [form, generalSettingsQuery.data]);
 
-      console.log('General settings:', data);
+  const onSubmit = async (data: GeneralSettingsValues) => {
+    try {
+      await updateGeneralMutation.mutateAsync(data);
 
       toast({
         title: 'Settings saved',
@@ -76,8 +79,6 @@ export function GeneralSettings() {
         description: 'Failed to save settings. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -258,8 +259,8 @@ export function GeneralSettings() {
               />
             </div>
 
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
+            <Button type="submit" disabled={updateGeneralMutation.isLoading}>
+              {updateGeneralMutation.isLoading ? 'Saving...' : 'Save Changes'}
             </Button>
           </form>
         </Form>

@@ -9,6 +9,30 @@
 import { z } from 'zod';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 
+const DEFAULT_GENERAL_SETTINGS = {
+  defaultKeywords: '',
+  defaultLocation: '',
+  autoApplyEnabled: false,
+  matchThreshold: 70,
+  browserHeadless: true,
+  maxApplicationsPerDay: 10,
+  applicationDelay: 5,
+};
+
+const generalSettingsSchema = z.object({
+  defaultKeywords: z.string().optional(),
+  defaultLocation: z.string().optional(),
+  autoApplyEnabled: z.boolean(),
+  matchThreshold: z.number().min(0).max(100),
+  browserHeadless: z.boolean(),
+  maxApplicationsPerDay: z.number().min(1).max(100),
+  applicationDelay: z.number().min(1).max(60),
+});
+
+function getGeneralSettingsKey(userId: string) {
+  return `user:${userId}:settings.general`;
+}
+
 /**
  * Settings router for app configuration
  */
@@ -56,6 +80,38 @@ export const settingsRouter = router({
         preferences: config.preferences,
         dataDir: config.dataDir,
         environment: config.environment,
+      };
+    }),
+
+  /**
+   * Get user-specific general settings
+   * SECURITY: Requires authentication (user-specific settings)
+   */
+  getGeneral: protectedProcedure
+    .query(async ({ ctx }) => {
+      const stored = ctx.settingsRepository.get<Record<string, unknown>>(
+        getGeneralSettingsKey(ctx.userId)
+      );
+      const parsed = generalSettingsSchema.partial().safeParse(stored ?? {});
+
+      return {
+        ...DEFAULT_GENERAL_SETTINGS,
+        ...(parsed.success ? parsed.data : {}),
+      };
+    }),
+
+  /**
+   * Update user-specific general settings
+   * SECURITY: Requires authentication (user-specific settings)
+   */
+  updateGeneral: protectedProcedure
+    .input(generalSettingsSchema)
+    .mutation(async ({ ctx, input }) => {
+      ctx.settingsRepository.set(getGeneralSettingsKey(ctx.userId), input);
+
+      return {
+        success: true,
+        message: 'General settings updated successfully',
       };
     }),
 
