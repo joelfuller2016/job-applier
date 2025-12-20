@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 
 /**
  * Auth router for user operations
@@ -13,6 +13,7 @@ import { router, publicProcedure } from '../trpc';
 export const authRouter = router({
   /**
    * Get current authenticated user info
+   * NOTE: This is intentionally public to allow checking auth state
    */
   getSession: publicProcedure
     .query(async ({ ctx }) => {
@@ -26,6 +27,8 @@ export const authRouter = router({
   /**
    * Get or create user from session
    * This is called after OAuth sign-in to ensure user exists in our database
+   * NOTE: Uses publicProcedure but validates session manually since this is
+   * called during the auth flow before protectedProcedure would work
    */
   syncUser: publicProcedure
     .mutation(async ({ ctx }) => {
@@ -62,20 +65,14 @@ export const authRouter = router({
 
   /**
    * Update user profile
+   * SECURITY: Requires authentication
    */
-  updateUser: publicProcedure
+  updateUser: protectedProcedure
     .input(z.object({
       name: z.string().optional(),
       image: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {
@@ -90,16 +87,10 @@ export const authRouter = router({
 
   /**
    * Delete user account
+   * SECURITY: Requires authentication
    */
-  deleteAccount: publicProcedure
+  deleteAccount: protectedProcedure
     .mutation(async ({ ctx }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {

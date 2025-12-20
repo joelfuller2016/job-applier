@@ -5,10 +5,11 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, protectedProcedure } from '../trpc';
 
 /**
  * Hunt router for automated job hunting
+ * SECURITY: All endpoints require authentication as they access user data
  */
 export const huntRouter = router({
   /**
@@ -37,6 +38,14 @@ export const huntRouter = router({
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: `Profile with ID ${input.profileId} not found`,
+        });
+      }
+
+      // Verify ownership
+      if (profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to use this profile',
         });
       }
 
@@ -97,6 +106,14 @@ export const huntRouter = router({
         });
       }
 
+      // Verify ownership
+      if (profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have permission to use this profile',
+        });
+      }
+
       const result = await ctx.orchestrator.quickApply(
         input.company,
         input.jobTitle,
@@ -113,9 +130,10 @@ export const huntRouter = router({
     }),
 
   /**
-   * Get hunt status (placeholder for future WebSocket/polling implementation)
+   * Get hunt status
+   * SECURITY: Requires authentication - exposes user hunt session data
    */
-  getHuntStatus: publicProcedure
+  getHuntStatus: protectedProcedure
     .input(z.object({ sessionId: z.string() }))
     .query(async ({ input }) => {
       // TODO: Implement hunt status tracking
@@ -129,8 +147,9 @@ export const huntRouter = router({
 
   /**
    * Get recent hunt sessions
+   * SECURITY: Requires authentication - exposes user hunt history
    */
-  getRecentHunts: publicProcedure
+  getRecentHunts: protectedProcedure
     .input(
       z.object({
         profileId: z.string().optional(),

@@ -43,6 +43,7 @@ const AutomationSessionSchema = z.object({
 export const automationRouter = router({
   /**
    * Get current automation status
+   * NOTE: Basic status is public for UI display
    */
   getStatus: publicProcedure.query(async () => {
     // In a real implementation, this would query the automation engine
@@ -57,8 +58,9 @@ export const automationRouter = router({
 
   /**
    * Get automation configuration
+   * SECURITY: Requires authentication - exposes user configuration
    */
-  getConfig: publicProcedure.query(async () => {
+  getConfig: protectedProcedure.query(async () => {
     // In a real implementation, this would read from config/database
     return {
       platforms: ['linkedin'] as ('linkedin' | 'indeed')[],
@@ -141,8 +143,9 @@ export const automationRouter = router({
 
   /**
    * Get automation history/sessions
+   * SECURITY: Requires authentication - exposes user session history
    */
-  getSessions: publicProcedure
+  getSessions: protectedProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(10),
@@ -159,8 +162,9 @@ export const automationRouter = router({
 
   /**
    * Get session by ID
+   * SECURITY: Requires authentication - exposes user session data
    */
-  getSession: publicProcedure
+  getSession: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       // In a real implementation, this would query a specific session
@@ -169,8 +173,9 @@ export const automationRouter = router({
 
   /**
    * Get automation logs
+   * SECURITY: Requires authentication - logs may contain sensitive info
    */
-  getLogs: publicProcedure
+  getLogs: protectedProcedure
     .input(
       z.object({
         sessionId: z.string().optional(),
@@ -195,6 +200,7 @@ export const automationRouter = router({
 
   /**
    * Get rate limit status
+   * NOTE: Basic rate limit info is public for UI display
    */
   getRateLimitStatus: publicProcedure.query(async () => {
     // In a real implementation, this would check rate limits
