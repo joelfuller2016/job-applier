@@ -5,8 +5,31 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { ApplicationStatus, ApplicationStatusSchema } from '@job-applier/core';
+/**
+ * Helper to verify application ownership through profile
+ */
+function verifyApplicationOwnership(
+  ctx: { profileRepository: any; userId: string },
+  application: { profileId: string }
+) {
+  const profile = ctx.profileRepository.findById(application.profileId);
+  if (!profile) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Associated profile not found',
+    });
+  }
+  if (profile.userId !== ctx.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to modify this application',
+    });
+  }
+}
+
+
 
 /**
  * Applications router for tracking job applications
@@ -74,7 +97,7 @@ export const applicationsRouter = router({
   /**
    * Update application status
    */
-  updateStatus: publicProcedure
+  updateStatus: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -83,6 +106,16 @@ export const applicationsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify ownership before update
+      const application = ctx.applicationRepository.findById(input.id);
+      if (!application) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Application with ID ${input.id} not found`,
+        });
+      }
+      verifyApplicationOwnership(ctx, application);
+
       const updated = ctx.applicationRepository.updateStatus(
         input.id,
         input.status as ApplicationStatus,
@@ -102,7 +135,7 @@ export const applicationsRouter = router({
   /**
    * Add a note/event to an application
    */
-  addNote: publicProcedure
+  addNote: protectedProcedure
     .input(
       z.object({
         applicationId: z.string(),
@@ -130,6 +163,8 @@ export const applicationsRouter = router({
         });
       }
 
+      verifyApplicationOwnership(ctx, application);
+
       const event = ctx.applicationRepository.addEvent(input.applicationId, {
         type: input.type,
         description: input.description,
@@ -142,7 +177,7 @@ export const applicationsRouter = router({
   /**
    * Mark application as submitted
    */
-  markSubmitted: publicProcedure
+  markSubmitted: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -150,6 +185,16 @@ export const applicationsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify ownership before marking submitted
+      const application = ctx.applicationRepository.findById(input.id);
+      if (!application) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Application with ID ${input.id} not found`,
+        });
+      }
+      verifyApplicationOwnership(ctx, application);
+
       const updated = ctx.applicationRepository.markSubmitted(
         input.id,
         input.platformApplicationId

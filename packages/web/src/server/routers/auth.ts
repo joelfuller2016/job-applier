@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 
 /**
  * Auth router for user operations
@@ -63,19 +63,13 @@ export const authRouter = router({
   /**
    * Update user profile
    */
-  updateUser: publicProcedure
+  updateUser: protectedProcedure
     .input(z.object({
       name: z.string().optional(),
       image: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
+      // Auth already verified by protectedProcedure
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {
@@ -91,15 +85,9 @@ export const authRouter = router({
   /**
    * Delete user account
    */
-  deleteAccount: publicProcedure
+  deleteAccount: protectedProcedure
     .mutation(async ({ ctx }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
+      // Auth already verified by protectedProcedure
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {

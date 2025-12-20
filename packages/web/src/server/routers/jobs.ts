@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { JobSearchQuery } from '@job-applier/core';
 
 /**
@@ -74,7 +74,7 @@ export const jobsRouter = router({
   /**
    * Update job status (for manual edits)
    */
-  updateStatus: publicProcedure
+  updateStatus: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -100,7 +100,7 @@ export const jobsRouter = router({
   /**
    * Delete a job
    */
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const deleted = ctx.jobRepository.delete(input.id);

@@ -5,7 +5,29 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
+/**
+ * Helper to verify profile ownership
+ */
+function verifyProfileOwnership(
+  profile: { userId?: string | null },
+  userId: string
+) {
+  if (!profile.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'This profile has no owner and cannot be used for hunting.',
+    });
+  }
+  if (profile.userId !== userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to use this profile',
+    });
+  }
+}
+
+
 
 /**
  * Hunt router for automated job hunting
@@ -14,7 +36,7 @@ export const huntRouter = router({
   /**
    * Start a new job hunt
    */
-  startHunt: publicProcedure
+  startHunt: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -38,6 +60,9 @@ export const huntRouter = router({
           message: `Profile with ID ${input.profileId} not found`,
         });
       }
+
+      // Verify user owns this profile
+      verifyProfileOwnership(profile, ctx.userId);
 
       // Start hunt (this will be long-running, consider making it async with status tracking)
       const result = await ctx.orchestrator.hunt(
@@ -76,7 +101,7 @@ export const huntRouter = router({
   /**
    * Quick apply to a specific company/job
    */
-  quickApply: publicProcedure
+  quickApply: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -93,6 +118,9 @@ export const huntRouter = router({
           message: `Profile with ID ${input.profileId} not found`,
         });
       }
+
+      // Verify user owns this profile
+      verifyProfileOwnership(profile, ctx.userId);
 
       const result = await ctx.orchestrator.quickApply(
         input.company,
