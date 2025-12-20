@@ -1,6 +1,8 @@
 /**
  * NextAuth.js Configuration
  * Provides Google OAuth authentication
+ * 
+ * SECURITY: Session duration reduced to 7 days for better security
  */
 
 import { AuthOptions, DefaultSession } from 'next-auth';
@@ -135,7 +137,21 @@ export const authOptions: AuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    // SECURITY: Reduced from 30 days to 7 days to minimize session hijacking window
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+    // Refresh session every 24 hours to keep users logged in during active use
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+  cookies: {
+    sessionToken: {
+      name: `${isProduction ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: isProduction,
+      },
+    },
   },
   // SECURITY: Secret is validated in validateAuthConfig() - fallback only for local development
   secret: process.env.NEXTAUTH_SECRET || (isDevelopment ? 'dev-only-secret-not-for-production' : undefined),
