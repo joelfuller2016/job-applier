@@ -47,11 +47,15 @@ const AutomationSessionSchema = z.object({
 export const automationRouter = router({
   /**
    * Get current automation status
+   * SECURITY: Requires authentication to access user-specific session data
    */
-  getStatus: publicProcedure.query(async ({ ctx }) => {
+  getStatus: protectedProcedure.query(async ({ ctx }) => {
     // Check for active session in database
-    if (ctx.userId && ctx.sessionRepository) {
-      const activeSession = ctx.sessionRepository.findActiveByUserAndType(ctx.userId, 'automation');
+    // Note: sessionRepository may not be available in all contexts
+    const sessionRepo = (ctx as { sessionRepository?: { findActiveByUserAndType: (userId: string, type: string) => { status: string; currentTask?: string; progress?: number; totalItems?: number; processedItems?: number; startedAt?: string; lastActivityAt?: string } | null } }).sessionRepository;
+
+    if (sessionRepo) {
+      const activeSession = sessionRepo.findActiveByUserAndType(ctx.userId, 'automation');
       if (activeSession) {
         return {
           state: activeSession.status === 'paused' ? 'paused' as const : 'running' as const,
@@ -64,7 +68,7 @@ export const automationRouter = router({
         };
       }
     }
-    
+
     return {
       state: 'idle' as const,
       currentTask: undefined,
