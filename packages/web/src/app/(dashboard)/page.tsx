@@ -25,8 +25,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
+import { isDemoMode } from '@/lib/demo';
 
-// Mock recent jobs data
+// Demo data - ONLY used when APP_MODE=demo
 const mockRecentJobs = [
   {
     id: '1',
@@ -208,7 +209,7 @@ export default function DashboardPage() {
 
       {/* Application Pipeline */}
       <ApplicationPipeline
-        stages={mockPipelineStages}
+        stages={isDemoMode() ? mockPipelineStages : []}
         totalApplications={25}
       />
 
@@ -218,7 +219,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Jobs & Activity Row */}
           <div className="grid gap-6 md:grid-cols-2">
-            <RecentJobsWidget jobs={mockRecentJobs} maxItems={5} />
+            <RecentJobsWidget jobs={isDemoMode() ? mockRecentJobs : []} maxItems={5} />
             <ActivityFeed activities={recentActivity} maxItems={5} />
           </div>
 
