@@ -58,6 +58,19 @@ export function GeneralSettings() {
     defaultValues,
   });
 
+  const handleResetToDefaults = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (storageError) {
+      console.warn('Failed to clear settings from localStorage', storageError);
+    }
+    form.reset(defaultValues);
+    toast({
+      title: 'Settings reset',
+      description: 'Settings have been reset to default values.',
+    });
+  };
+
   const onSubmit = async (data: GeneralSettingsValues) => {
     setIsLoading(true);
     try {
@@ -258,9 +271,19 @@ export function GeneralSettings() {
               />
             </div>
 
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </Button>
+            <div className="flex gap-4">
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleResetToDefaults}
+                disabled={isLoading}
+              >
+                Reset to Defaults
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
