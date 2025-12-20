@@ -363,7 +363,7 @@ Many settings pages have placeholder TODO comments.
 ### Affected Files
 ```
 packages/web/src/components/settings/platform-settings.tsx (3 TODOs)
-packages/web/src/components/settings/api-keys-settings.tsx (3 TODOs)
+packages/web/src/components/settings/api-keys-settings.tsx (3 TODOs) - **PENDING: Implemented in PR**
 packages/web/src/components/settings/general-settings.tsx (1 TODO)
 packages/web/src/components/settings/notification-settings.tsx (1 TODO)
 packages/web/src/components/settings/data-privacy-settings.tsx (4 TODOs)

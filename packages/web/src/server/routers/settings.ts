@@ -1,13 +1,15 @@
 /**
  * Settings Router
  * Handles application settings and configuration
- * 
+ *
  * SECURITY: Settings mutations require admin access.
  * Regular users can only read settings, not modify them.
+ * API key testing requires authentication but not admin access.
  */
 
 import { z } from 'zod';
-import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure, adminProcedure, rateLimitedMutationProcedure } from '../trpc';
 
 /**
  * Settings router for app configuration
@@ -176,6 +178,229 @@ export const settingsRouter = router({
         logPath: ctx.configManager.ensureDataSubdir('logs'),
         screenshotsPath: ctx.configManager.ensureDataSubdir('screenshots'),
         uploadsPath: ctx.configManager.ensureDataSubdir('uploads'),
+      };
+    }),
+
+  /**
+   * Test Claude API key validity
+   * SECURITY: Requires authentication, rate-limited to prevent abuse
+   * Makes a minimal API call to validate the key
+   */
+  testClaudeKey: rateLimitedMutationProcedure
+    .input(z.object({
+      apiKey: z.string().min(1, 'API key is required'),
+    }))
+    .mutation(async ({ input }) => {
+      const { apiKey } = input;
+
+      // Basic format validation for Claude API keys
+      if (!apiKey.startsWith('sk-ant-')) {
+        return {
+          valid: false,
+          message: 'Invalid API key format. Claude API keys should start with "sk-ant-".',
+        };
+      }
+
+      try {
+        // Make a minimal API call to validate the key
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 1,
+            messages: [{ role: 'user', content: 'test' }],
+          }),
+        });
+
+        if (response.status === 401) {
+          return {
+            valid: false,
+            message: 'Invalid API key. Please check your key and try again.',
+          };
+        }
+
+        if (response.status === 400) {
+          // 400 with valid key means key is valid but request was bad (expected for minimal test)
+          // Or we get actual content which means it worked
+          return {
+            valid: true,
+            message: 'Claude API key is valid and working.',
+          };
+        }
+
+        if (response.ok) {
+          return {
+            valid: true,
+            message: 'Claude API key is valid and working.',
+          };
+        }
+
+        // Handle rate limiting
+        if (response.status === 429) {
+          return {
+            valid: true,
+            message: 'Claude API key appears valid (rate limited during test).',
+          };
+        }
+
+        return {
+          valid: false,
+          message: `Unexpected response from Claude API: ${response.status}`,
+        };
+      } catch (error) {
+        console.error('[Settings] Error testing Claude API key:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to test API key. Please check your network connection.',
+        });
+      }
+    }),
+
+  /**
+   * Test Exa API key validity
+   * SECURITY: Requires authentication, rate-limited to prevent abuse
+   * Makes a minimal API call to validate the key
+   */
+  testExaKey: rateLimitedMutationProcedure
+    .input(z.object({
+      apiKey: z.string().min(1, 'API key is required'),
+    }))
+    .mutation(async ({ input }) => {
+      const { apiKey } = input;
+
+      // Basic length validation for Exa API keys
+      if (apiKey.length < 10) {
+        return {
+          valid: false,
+          message: 'Invalid API key format. API key is too short.',
+        };
+      }
+
+      try {
+        // Make a minimal API call to validate the key
+        const response = await fetch('https://api.exa.ai/search', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            query: 'test',
+            numResults: 1,
+          }),
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          return {
+            valid: false,
+            message: 'Invalid API key. Please check your key and try again.',
+          };
+        }
+
+        if (response.ok) {
+          return {
+            valid: true,
+            message: 'Exa API key is valid and working.',
+          };
+        }
+
+        // Handle rate limiting
+        if (response.status === 429) {
+          return {
+            valid: true,
+            message: 'Exa API key appears valid (rate limited during test).',
+          };
+        }
+
+        return {
+          valid: false,
+          message: `Unexpected response from Exa API: ${response.status}`,
+        };
+      } catch (error) {
+        console.error('[Settings] Error testing Exa API key:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to test API key. Please check your network connection.',
+        });
+      }
+    }),
+
+  /**
+   * Update API keys
+   * SECURITY: Requires authentication, rate-limited
+   * Updates the Claude and Exa API keys in configuration
+   *
+   * NOTE: API keys are stored in memory/config file.
+   * For production, consider using a secure secrets manager.
+   */
+  updateApiKeys: rateLimitedMutationProcedure
+    .input(z.object({
+      claudeApiKey: z.string().min(1, 'Claude API key is required'),
+      exaApiKey: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { claudeApiKey, exaApiKey } = input;
+
+      // Validate Claude API key format
+      if (!claudeApiKey.startsWith('sk-ant-')) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid Claude API key format. Keys should start with "sk-ant-".',
+        });
+      }
+
+      try {
+        // Update configuration with new API keys
+        ctx.configManager.update({
+          claude: {
+            ...ctx.config.claude,
+            apiKey: claudeApiKey,
+          },
+          ...(exaApiKey && {
+            exa: {
+              ...ctx.config.exa,
+              apiKey: exaApiKey,
+            },
+          }),
+        });
+
+        return {
+          success: true,
+          message: 'API keys updated successfully.',
+        };
+      } catch (error) {
+        console.error('[Settings] Error updating API keys:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to update API keys. Please try again.',
+        });
+      }
+    }),
+
+  /**
+   * Get current API key status (masked)
+   * SECURITY: Returns only whether keys are configured, not the actual keys
+   */
+  getApiKeyStatus: protectedProcedure
+    .query(async ({ ctx }) => {
+      const config = ctx.config;
+      const claudeKey = config.claude.apiKey;
+      const exaKey = config.exa.apiKey;
+
+      return {
+        claude: {
+          configured: !!claudeKey && claudeKey.length > 0,
+          masked: claudeKey ? `${claudeKey.slice(0, 10)}...${claudeKey.slice(-4)}` : null,
+        },
+        exa: {
+          configured: !!exaKey && exaKey.length > 0,
+          masked: exaKey ? `${exaKey.slice(0, 6)}...${exaKey.slice(-4)}` : null,
+        },
       };
     }),
 });

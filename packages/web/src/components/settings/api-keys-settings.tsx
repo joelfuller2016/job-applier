@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { trpc } from '@/lib/trpc/react';
 
 const apiKeysSchema = z.object({
   claudeApiKey: z.string().min(1, 'Claude API key is required'),
@@ -46,12 +46,69 @@ interface ApiKeyStatus {
 
 export function ApiKeysSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
   const [showClaudeKey, setShowClaudeKey] = React.useState(false);
   const [showExaKey, setShowExaKey] = React.useState(false);
   const [keyStatus, setKeyStatus] = React.useState<ApiKeyStatus>({
     claude: 'idle',
     exa: 'idle',
+  });
+
+  // Fetch current API key status
+  const { data: apiKeyStatus } = trpc.settings.getApiKeyStatus.useQuery();
+
+  // Mutations for testing and saving API keys
+  const testClaudeMutation = trpc.settings.testClaudeKey.useMutation({
+    onSuccess: (result) => {
+      setKeyStatus((prev) => ({ ...prev, claude: result.valid ? 'valid' : 'invalid' }));
+      toast({
+        title: result.valid ? 'Connection successful' : 'Connection failed',
+        description: result.message,
+        variant: result.valid ? 'default' : 'destructive',
+      });
+    },
+    onError: (error) => {
+      setKeyStatus((prev) => ({ ...prev, claude: 'invalid' }));
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to test API key. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const testExaMutation = trpc.settings.testExaKey.useMutation({
+    onSuccess: (result) => {
+      setKeyStatus((prev) => ({ ...prev, exa: result.valid ? 'valid' : 'invalid' }));
+      toast({
+        title: result.valid ? 'Connection successful' : 'Connection failed',
+        description: result.message,
+        variant: result.valid ? 'default' : 'destructive',
+      });
+    },
+    onError: (error) => {
+      setKeyStatus((prev) => ({ ...prev, exa: 'invalid' }));
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to test API key. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateApiKeysMutation = trpc.settings.updateApiKeys.useMutation({
+    onSuccess: (result) => {
+      toast({
+        title: 'Settings saved',
+        description: result.message,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save API keys. Please try again.',
+        variant: 'destructive',
+      });
+    },
   });
 
   const form = useForm<ApiKeysValues>({
@@ -71,32 +128,7 @@ export function ApiKeysSettings() {
     }
 
     setKeyStatus((prev) => ({ ...prev, claude: 'testing' }));
-
-    try {
-      // TODO: Implement tRPC mutation to test Claude API key
-      // const result = await trpc.settings.testClaudeKey.mutate({ apiKey: key });
-
-      // Simulate API test
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const isValid = key.startsWith('sk-'); // Basic validation
-
-      setKeyStatus((prev) => ({ ...prev, claude: isValid ? 'valid' : 'invalid' }));
-
-      toast({
-        title: isValid ? 'Connection successful' : 'Connection failed',
-        description: isValid
-          ? 'Claude API key is valid and working.'
-          : 'Unable to authenticate with Claude API.',
-        variant: isValid ? 'default' : 'destructive',
-      });
-    } catch (error) {
-      setKeyStatus((prev) => ({ ...prev, claude: 'invalid' }));
-      toast({
-        title: 'Error',
-        description: 'Failed to test API key. Please try again.',
-        variant: 'destructive',
-      });
-    }
+    testClaudeMutation.mutate({ apiKey: key });
   };
 
   const testExaKey = async () => {
@@ -111,56 +143,17 @@ export function ApiKeysSettings() {
     }
 
     setKeyStatus((prev) => ({ ...prev, exa: 'testing' }));
-
-    try {
-      // TODO: Implement tRPC mutation to test Exa API key
-      // const result = await trpc.settings.testExaKey.mutate({ apiKey: key });
-
-      // Simulate API test
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const isValid = key.length > 10; // Basic validation
-
-      setKeyStatus((prev) => ({ ...prev, exa: isValid ? 'valid' : 'invalid' }));
-
-      toast({
-        title: isValid ? 'Connection successful' : 'Connection failed',
-        description: isValid
-          ? 'Exa API key is valid and working.'
-          : 'Unable to authenticate with Exa API.',
-        variant: isValid ? 'default' : 'destructive',
-      });
-    } catch (error) {
-      setKeyStatus((prev) => ({ ...prev, exa: 'invalid' }));
-      toast({
-        title: 'Error',
-        description: 'Failed to test API key. Please try again.',
-        variant: 'destructive',
-      });
-    }
+    testExaMutation.mutate({ apiKey: key });
   };
 
   const onSubmit = async (data: ApiKeysValues) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement tRPC mutation to save API keys
-      // await trpc.settings.updateApiKeys.mutate(data);
-
-      console.log('API keys:', { ...data, claudeApiKey: '***', exaApiKey: '***' });
-
-      toast({
-        title: 'Settings saved',
-        description: 'Your API keys have been updated successfully.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save API keys. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    updateApiKeysMutation.mutate({
+      claudeApiKey: data.claudeApiKey,
+      exaApiKey: data.exaApiKey || undefined,
+    });
   };
+
+  const isLoading = updateApiKeysMutation.isPending;
 
   const getStatusIcon = (status: ApiKeyStatus['claude' | 'exa']) => {
     switch (status) {
