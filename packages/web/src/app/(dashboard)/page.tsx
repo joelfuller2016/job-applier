@@ -26,7 +26,15 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import Link from 'next/link';
 
-// Mock recent jobs data
+/**
+ * Check if demo mode is enabled (client-side)
+ * Demo data is ONLY shown when NEXT_PUBLIC_APP_MODE=demo
+ */
+const isDemoMode = (): boolean => {
+  return process.env.NEXT_PUBLIC_APP_MODE === 'demo';
+};
+
+// Demo data - ONLY used when APP_MODE=demo
 const mockRecentJobs = [
   {
     id: '1',
@@ -206,10 +214,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Application Pipeline */}
+      {/* Application Pipeline - uses demo data only in demo mode */}
       <ApplicationPipeline
-        stages={mockPipelineStages}
-        totalApplications={25}
+        stages={isDemoMode() ? mockPipelineStages : []}
+        totalApplications={stats.applicationsSent}
       />
 
       {/* Main Content Grid */}
@@ -218,7 +226,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Jobs & Activity Row */}
           <div className="grid gap-6 md:grid-cols-2">
-            <RecentJobsWidget jobs={mockRecentJobs} maxItems={5} />
+            <RecentJobsWidget jobs={isDemoMode() ? mockRecentJobs : []} maxItems={5} />
             <ActivityFeed activities={recentActivity} maxItems={5} />
           </div>
 

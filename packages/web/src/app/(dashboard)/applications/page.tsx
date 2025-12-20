@@ -16,7 +16,15 @@ import type {
   ViewMode,
 } from '@/types/application';
 
-// Mock data for demonstration
+/**
+ * Check if demo mode is enabled (client-side)
+ * Demo data is ONLY shown when NEXT_PUBLIC_APP_MODE=demo
+ */
+const isDemoMode = (): boolean => {
+  return process.env.NEXT_PUBLIC_APP_MODE === 'demo';
+};
+
+// Demo data - ONLY used when APP_MODE=demo
 const mockApplications: Application[] = [
   {
     id: '1',
@@ -191,7 +199,8 @@ const mockApplications: Application[] = [
 
 export default function ApplicationsPage() {
   const [viewMode, setViewMode] = React.useState<ViewMode>('kanban');
-  const [applications, setApplications] = React.useState<Application[]>(mockApplications);
+  // Only use demo data when APP_MODE=demo, otherwise start with empty array
+  const [applications, setApplications] = React.useState<Application[]>(isDemoMode() ? mockApplications : []);
   const [selectedApplication, setSelectedApplication] = React.useState<Application | null>(null);
   const [addNoteDialogOpen, setAddNoteDialogOpen] = React.useState(false);
   const [noteApplicationId, setNoteApplicationId] = React.useState<string | null>(null);
