@@ -158,8 +158,8 @@ export class BrowserManager {
 
     try {
       const cookies = await this.context.cookies();
-      const fs = await import('fs');
-      fs.writeFileSync(path, JSON.stringify(cookies, null, 2));
+      const { promises: fs } = await import('fs');
+      await fs.writeFile(path, JSON.stringify(cookies, null, 2));
     } catch (error) {
       throw new BrowserError(
         `Failed to save cookies: ${error instanceof Error ? error.message : String(error)}`
@@ -176,12 +176,15 @@ export class BrowserManager {
     }
 
     try {
-      const fs = await import('fs');
-      if (!fs.existsSync(path)) {
+      const { promises: fs } = await import('fs');
+      try {
+        await fs.access(path);
+      } catch {
+        // File doesn't exist, nothing to load
         return;
       }
 
-      const cookies = JSON.parse(fs.readFileSync(path, 'utf-8'));
+      const cookies = JSON.parse(await fs.readFile(path, 'utf-8'));
       await this.context.addCookies(cookies);
     } catch (error) {
       throw new BrowserError(
