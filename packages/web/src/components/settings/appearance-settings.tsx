@@ -73,7 +73,6 @@ export function AppearanceSettings() {
   });
 
   const currentTheme = form.watch('theme');
-  const currentAccent = form.watch('accentColor');
 
   React.useEffect(() => {
     form.reset(
@@ -82,7 +81,7 @@ export function AppearanceSettings() {
         theme: (theme as AppearanceSettingsValues['theme']) || 'system',
       })
     );
-  }, [form, theme]);
+  }, []);
 
   React.useEffect(() => {
     if (currentTheme) {
