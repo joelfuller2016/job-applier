@@ -35,13 +35,23 @@ export class JobHunterOrchestrator {
   private analyzer: AIPageAnalyzer;
   private navigator: CareerPageNavigator;
   private formFiller: AIFormFiller;
-  private browserManager = getBrowserManager();
+  private _browserManager: Awaited<ReturnType<typeof getBrowserManager>> | null = null;
 
   constructor() {
     this.discovery = new WebJobDiscovery();
     this.analyzer = new AIPageAnalyzer();
     this.navigator = new CareerPageNavigator();
     this.formFiller = new AIFormFiller();
+  }
+
+  /**
+   * Get the browser manager instance (lazy initialization)
+   */
+  private async getBrowserManager() {
+    if (!this._browserManager) {
+      this._browserManager = await getBrowserManager();
+    }
+    return this._browserManager;
   }
 
   /**
@@ -97,7 +107,8 @@ export class JobHunterOrchestrator {
       // Phase 3: Apply to matched jobs
       if (config.autoApply !== false) {
         this.log(callbacks, 'Phase 3: Applying to jobs...');
-        await this.browserManager.launch();
+        const browserManager = await this.getBrowserManager();
+        await browserManager.launch();
 
         for (const job of matchedJobs) {
           // Check confirmation
@@ -136,7 +147,7 @@ export class JobHunterOrchestrator {
           await this.delay(3000, 5000);
         }
 
-        await this.browserManager.close();
+        await browserManager.close();
       }
 
       result.completedAt = new Date().toISOString();
@@ -173,8 +184,9 @@ export class JobHunterOrchestrator {
     if (config.includeCompanies && config.includeCompanies.length > 0) {
       this.log(callbacks, `Searching ${config.includeCompanies.length} company sites...`);
 
-      await this.browserManager.launch();
-      const page = await this.browserManager.newPage();
+      const browserManager = await this.getBrowserManager();
+      await browserManager.launch();
+      const page = await browserManager.newPage();
 
       for (const companyName of config.includeCompanies) {
         try {
@@ -236,7 +248,8 @@ export class JobHunterOrchestrator {
 
         // Get job details if description is short
         if (job.description.length < 200) {
-          const page = await this.browserManager.newPage();
+          const browserManager = await this.getBrowserManager();
+          const page = await browserManager.newPage();
           await this.discovery.getJobDetails(page, job);
           await page.close();
         }
@@ -296,7 +309,8 @@ export class JobHunterOrchestrator {
       status: 'pending_confirmation',
     };
 
-    const page = await this.browserManager.newPage();
+    const browserManager = await this.getBrowserManager();
+    const page = await browserManager.newPage();
 
     try {
       this.log(callbacks, `Applying to: ${job.title} at ${job.company}`);
@@ -407,7 +421,8 @@ export class JobHunterOrchestrator {
     userProfile: UserProfile,
     callbacks: HuntCallbacks = {}
   ): Promise<ApplicationAttempt> {
-    await this.browserManager.launch();
+    const browserManager = await this.getBrowserManager();
+    await browserManager.launch();
 
     try {
       // Find careers page
@@ -431,7 +446,7 @@ export class JobHunterOrchestrator {
       };
 
       // Find specific job
-      const page = await this.browserManager.newPage();
+      const page = await browserManager.newPage();
       await page.goto(careersUrl, { waitUntil: 'networkidle' });
       await this.delay(2000, 3000);
 
@@ -454,7 +469,7 @@ export class JobHunterOrchestrator {
       return attempt;
 
     } finally {
-      await this.browserManager.close();
+      await browserManager.close();
     }
   }
 }

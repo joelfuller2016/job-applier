@@ -10,9 +10,12 @@ import { BrowserError } from '@job-applier/core';
 
 /**
  * Browser manager singleton
+ * Uses promise-based singleton pattern to prevent race conditions
+ * when multiple concurrent calls attempt to get the instance.
  */
 export class BrowserManager {
   private static instance: BrowserManager | null = null;
+  private static instancePromise: Promise<BrowserManager> | null = null;
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private config: BrowserConfig;
@@ -22,24 +25,30 @@ export class BrowserManager {
   }
 
   /**
-   * Get the singleton instance
+   * Get the singleton instance (async to prevent race conditions)
+   * Multiple concurrent calls will receive the same promise,
+   * ensuring only one instance is created.
    */
-  static getInstance(): BrowserManager {
-    if (!BrowserManager.instance) {
-      const config = getConfigManager().getBrowser();
-      BrowserManager.instance = new BrowserManager(config);
+  static async getInstance(): Promise<BrowserManager> {
+    if (!BrowserManager.instancePromise) {
+      BrowserManager.instancePromise = (async () => {
+        const config = getConfigManager().getBrowser();
+        BrowserManager.instance = new BrowserManager(config);
+        return BrowserManager.instance;
+      })();
     }
-    return BrowserManager.instance;
+    return BrowserManager.instancePromise;
   }
 
   /**
    * Reset the singleton (for testing)
    */
-  static reset(): void {
+  static async reset(): Promise<void> {
     if (BrowserManager.instance) {
-      BrowserManager.instance.close().catch(console.error);
+      await BrowserManager.instance.close().catch(console.error);
     }
     BrowserManager.instance = null;
+    BrowserManager.instancePromise = null;
   }
 
   /**
@@ -193,7 +202,8 @@ export class BrowserManager {
 
 /**
  * Get the browser manager instance
+ * Returns a promise to support the race-condition-safe singleton pattern.
  */
-export function getBrowserManager(): BrowserManager {
+export async function getBrowserManager(): Promise<BrowserManager> {
   return BrowserManager.getInstance();
 }

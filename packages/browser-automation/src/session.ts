@@ -218,7 +218,7 @@ export const sessionManager = {
 export async function createPageWithSession(
   platform: string
 ): Promise<{ page: Page; hasSession: boolean }> {
-  const manager = getBrowserManager();
+  const manager = await getBrowserManager();
   const sessManager = getSessionManager();
 
   const context = await manager.getContext();
