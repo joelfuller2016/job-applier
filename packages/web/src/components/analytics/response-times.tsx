@@ -11,6 +11,7 @@ import {
   Tooltip,
   Cell,
 } from 'recharts';
+import { isDemoMode } from '@/lib/demo';
 
 interface ResponseTimesProps {
   dateRange: string;

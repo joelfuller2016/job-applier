@@ -70,6 +70,15 @@ export function SkillMatchAnalysis({ dateRange, isLoading }: SkillMatchAnalysisP
     );
   }
 
+  // Empty state for production mode
+  if (radarData.length === 0) {
+    return (
+      <div className="flex h-[400px] items-center justify-center text-muted-foreground">
+        <p>No skill analysis data available</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {/* Radar Chart */}
