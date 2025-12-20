@@ -132,6 +132,15 @@ export function TopCompanies({ dateRange, isLoading }: TopCompaniesProps) {
     );
   }
 
+  // Empty state for production mode
+  if (companies.length === 0) {
+    return (
+      <div className="flex h-[400px] items-center justify-center text-muted-foreground">
+        <p>No company data available</p>
+      </div>
+    );
+  }
+
   const TrendIcon = ({ trend }: { trend: 'up' | 'down' | 'stable' }) => {
     switch (trend) {
       case 'up':

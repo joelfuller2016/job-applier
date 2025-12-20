@@ -1,17 +1,23 @@
 /**
  * Demo Mode Utilities
  *
- * This module provides utilities for detecting and handling demo mode in the application.
- * Demo mode is used to show mock/sample data for demonstration purposes.
+ * This module provides utilities for managing demo mode state throughout the application.
+ * Demo mode allows the application to show mock/sample data for demonstration purposes,
+ * while production mode shows only real data from API sources.
  *
- * IMPORTANT: Production builds should NEVER show demo data. The isDemoMode() function
- * is designed with safe defaults - it only returns true when explicitly set to 'demo'.
+ * Environment Variable: NEXT_PUBLIC_APP_MODE
+ * - 'demo': Demo mode enabled - mock data is shown
+ * - 'production' or any other value: Demo mode disabled - only real data
+ * - undefined: Treated as production (safe default)
+ *
+ * IMPORTANT: The function is designed to be safe by default:
+ * - If the environment variable is not set, returns false (production behavior)
+ * - If the environment variable has any value other than 'demo', returns false
+ * - Only returns true when explicitly set to 'demo'
  */
 
 /**
- * Check if demo mode is enabled (client-side)
- *
- * Demo data is ONLY shown when NEXT_PUBLIC_APP_MODE=demo
+ * Check if the application is running in demo mode.
  *
  * @returns {boolean} true if demo mode is enabled, false otherwise
  *
@@ -20,21 +26,18 @@
  * - Returns `false` when NEXT_PUBLIC_APP_MODE has any value other than 'demo'
  * - Returns `true` ONLY when NEXT_PUBLIC_APP_MODE === 'demo'
  *
- * This ensures that production deployments never accidentally show demo/mock data,
- * even if the environment variable is misconfigured or missing.
- *
  * @example
  * ```typescript
  * import { isDemoMode } from '@/lib/demo';
  *
- * // In a component:
+ * // Gate mock data behind demo mode check
  * const data = isDemoMode() ? mockData : [];
  *
- * // Or with early return:
- * if (!isDemoMode()) {
- *   return []; // Return empty in production
+ * // Conditional rendering
+ * if (isDemoMode()) {
+ *   return <DemoComponent data={mockData} />;
  * }
- * // ... use mock data for demo
+ * return <RealComponent />;
  * ```
  */
 export const isDemoMode = (): boolean => {

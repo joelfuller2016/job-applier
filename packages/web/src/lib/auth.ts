@@ -1,6 +1,7 @@
 /**
  * NextAuth.js Configuration
- * Provides Google OAuth authentication
+ * Provides Google OAuth authentication for production
+ * Demo mode authentication is ONLY available when APP_MODE=demo
  */
 
 import { AuthOptions, DefaultSession } from 'next-auth';
@@ -9,12 +10,19 @@ import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 /**
- * Check if demo auth is enabled
- * SECURITY: Demo auth must be explicitly enabled and only works in development
+ * Check if demo mode is enabled
+ * SECURITY: Demo mode requires APP_MODE=demo environment variable
+ * This is the ONLY way to enable demo authentication
  */
-const isDemoAuthEnabled = (): boolean => {
-  return process.env.NODE_ENV === 'development' &&
-         process.env.ENABLE_DEMO_AUTH === 'true';
+export const isDemoMode = (): boolean => {
+  return process.env.APP_MODE === 'demo';
+};
+
+/**
+ * Check if we're in production mode (default)
+ */
+export const isProductionMode = (): boolean => {
+  return process.env.APP_MODE !== 'demo';
 };
 
 /**
@@ -26,6 +34,12 @@ const getAuthSecret = (): string => {
   const secret = process.env.NEXTAUTH_SECRET;
   const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
 
+  // In demo mode, allow a development secret
+  if (isDemoMode()) {
+    return secret || 'demo-mode-secret-not-for-production';
+  }
+
+  // Production mode requires a real secret
   if (!secret && process.env.NODE_ENV === 'production' && !isBuilding) {
     throw new Error(
       'NEXTAUTH_SECRET environment variable is required in production. ' +
@@ -38,7 +52,25 @@ const getAuthSecret = (): string => {
     return 'build-time-placeholder-not-used-at-runtime';
   }
 
-  return secret || 'development-only-secret-not-for-production';
+  return secret || 'development-only-secret-change-in-production';
+};
+
+/**
+ * Validate Google OAuth configuration
+ * SECURITY: In production mode, Google OAuth must be properly configured
+ */
+const validateGoogleOAuth = (): void => {
+  const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
+
+  if (isProductionMode() && !isBuilding) {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.warn(
+        'WARNING: Google OAuth credentials not configured. ' +
+        'Users will not be able to sign in. ' +
+        'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.'
+      );
+    }
+  }
 };
 
 // Extend the session type to include our custom fields
@@ -61,28 +93,34 @@ declare module 'next-auth/jwt' {
 }
 
 /**
- * Build providers array based on configuration
+ * Build providers array based on APP_MODE
+ * - Production: Google OAuth only
+ * - Demo: Google OAuth + Demo credentials
  */
 const buildProviders = (): Provider[] => {
+  validateGoogleOAuth();
+
   const providers: Provider[] = [
-    // Google OAuth Provider
+    // Google OAuth Provider - always available
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
   ];
 
-  // Only add demo credentials provider if explicitly enabled in development
-  if (isDemoAuthEnabled()) {
+  // Demo credentials provider - ONLY in demo mode
+  if (isDemoMode()) {
+    console.log('Demo mode enabled - demo authentication available');
     providers.push(
       CredentialsProvider({
+        id: 'demo-credentials',
         name: 'Demo Account',
         credentials: {
           email: { label: 'Email', type: 'email', placeholder: 'demo@example.com' },
           password: { label: 'Password', type: 'password' },
         },
         async authorize(credentials) {
-          // Demo account for development/testing only
+          // Demo account credentials
           if (
             credentials?.email === 'demo@example.com' &&
             credentials?.password === 'demo123'
