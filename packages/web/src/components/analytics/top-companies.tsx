@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { isDemoMode } from '@/lib/demo';
 
 interface TopCompaniesProps {
   dateRange: string;
@@ -33,7 +34,12 @@ function getInitials(name: string): string {
 
 export function TopCompanies({ dateRange, isLoading }: TopCompaniesProps) {
   const companies: CompanyData[] = useMemo(() => {
-    // Mock data - replace with actual API calls
+    // Demo data - ONLY used when APP_MODE=demo
+    // In production, this would come from API calls
+    if (!isDemoMode()) {
+      return []; // Return empty array in production
+    }
+
     const mockCompanies = [
       {
         id: '1',

@@ -24,6 +24,7 @@ import {
   DialogContent,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { isDemoMode } from '@/lib/demo';
 
 interface SearchResult {
   id: string;
@@ -40,7 +41,7 @@ interface GlobalSearchProps {
   className?: string;
 }
 
-// Mock search results
+// Demo search results - ONLY used when APP_MODE=demo
 const mockResults: SearchResult[] = [
   {
     id: '1',
@@ -135,7 +136,10 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     setIsSearching(true);
     // Simulate search delay
     const timeout = setTimeout(() => {
-      const filtered = mockResults.filter(
+      // In production mode, return empty results (real search would use API)
+      // In demo mode, filter mock results for demonstration
+      const searchableResults = isDemoMode() ? mockResults : [];
+      const filtered = searchableResults.filter(
         (result) =>
           result.title.toLowerCase().includes(query.toLowerCase()) ||
           result.subtitle.toLowerCase().includes(query.toLowerCase())
