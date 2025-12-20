@@ -1,11 +1,15 @@
 /**
  * Auth Router
  * Handles user authentication and account operations
+ * 
+ * SECURITY FIX: updateUser and deleteAccount now use protectedProcedure
+ * instead of publicProcedure with manual checks.
+ * See: https://github.com/joelfuller2016/job-applier/issues/16
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 
 /**
  * Auth router for user operations
@@ -13,6 +17,7 @@ import { router, publicProcedure } from '../trpc';
 export const authRouter = router({
   /**
    * Get current authenticated user info
+   * NOTE: Must be publicProcedure to check auth status
    */
   getSession: publicProcedure
     .query(async ({ ctx }) => {
@@ -26,6 +31,8 @@ export const authRouter = router({
   /**
    * Get or create user from session
    * This is called after OAuth sign-in to ensure user exists in our database
+   * NOTE: Must be publicProcedure because userId may still be 'default'
+   * immediately after OAuth before user record is created
    */
   syncUser: publicProcedure
     .mutation(async ({ ctx }) => {
@@ -62,20 +69,15 @@ export const authRouter = router({
 
   /**
    * Update user profile
+   * SECURITY: Now uses protectedProcedure - middleware handles authentication
    */
-  updateUser: publicProcedure
+  updateUser: protectedProcedure
     .input(z.object({
       name: z.string().optional(),
       image: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
+      // ctx.userId is guaranteed to be valid by protectedProcedure middleware
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {
@@ -90,16 +92,11 @@ export const authRouter = router({
 
   /**
    * Delete user account
+   * SECURITY: Now uses protectedProcedure - middleware handles authentication
    */
-  deleteAccount: publicProcedure
+  deleteAccount: protectedProcedure
     .mutation(async ({ ctx }) => {
-      if (ctx.userId === 'default' || !ctx.session) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Not authenticated',
-        });
-      }
-
+      // ctx.userId is guaranteed to be valid by protectedProcedure middleware
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {
