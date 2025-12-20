@@ -1,6 +1,7 @@
 export { KanbanBoard } from './kanban-board';
 export { ApplicationList } from './application-list';
 export { ApplicationCard } from './application-card';
+export { EnhancedApplicationCard } from './enhanced-application-card';
 export { ApplicationDetail } from './application-detail';
 export { Filters } from './filters';
 export { AddNoteDialog } from './add-note-dialog';

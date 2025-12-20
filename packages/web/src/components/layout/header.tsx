@@ -2,11 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Bell, Search, Moon, Sun, User, LogOut, Settings, UserPlus, ChevronDown } from 'lucide-react';
+import { Bell, Search, Moon, Sun, User, LogOut, Settings, UserPlus, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +21,7 @@ import {
 } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn, getInitials } from '@/lib/utils';
+import { GlobalSearch } from './global-search';
 
 interface HeaderProps {
   className?: string;
@@ -30,28 +30,18 @@ interface HeaderProps {
 export function Header({ className }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const { user, isLoading, isAuthenticated, logout } = useAuth();
-  const [searchQuery, setSearchQuery] = React.useState('');
   const [hasNotifications, setHasNotifications] = React.useState(true);
 
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6',
+        'sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6',
         className
       )}
     >
-      {/* Search Bar */}
+      {/* Global Search */}
       <div className="flex-1 max-w-xl">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search jobs, applications..."
-            className="w-full pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <GlobalSearch />
       </div>
 
       {/* Right Side Actions */}
