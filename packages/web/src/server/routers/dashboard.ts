@@ -27,6 +27,13 @@ export const dashboardRouter = router({
         ? ctx.profileRepository.findById(input.profileId)
         : ctx.profileRepository.getDefaultForUser(ctx.userId);
 
+      if (input.profileId && !profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.profileId} not found.`,
+        });
+      }
+
       if (profile && profile.userId !== ctx.userId) {
         throw new TRPCError({
           code: 'FORBIDDEN',
@@ -111,6 +118,13 @@ export const dashboardRouter = router({
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
         : ctx.profileRepository.getDefaultForUser(ctx.userId);
+
+      if (input.profileId && !profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.profileId} not found.`,
+        });
+      }
 
       if (profile && profile.userId !== ctx.userId) {
         throw new TRPCError({
