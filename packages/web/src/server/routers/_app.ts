@@ -4,6 +4,7 @@
  */
 
 import { router } from '../trpc';
+import { authRouter } from './auth';
 import { profileRouter } from './profile';
 import { jobsRouter } from './jobs';
 import { applicationsRouter } from './applications';
@@ -17,6 +18,7 @@ import { automationRouter } from './automation';
  * Merges all feature routers
  */
 export const appRouter = router({
+  auth: authRouter,
   profile: profileRouter,
   jobs: jobsRouter,
   applications: applicationsRouter,

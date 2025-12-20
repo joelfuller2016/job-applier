@@ -1,45 +1,83 @@
 /**
  * Profile Router
- * Handles user profile operations
+ * Handles user profile operations with multi-profile support
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { UserProfileSchema } from '@job-applier/core';
+import { UserProfileSchema, JobPreferencesSchema, ContactInfoSchema, SkillSchema, WorkExperienceSchema, EducationSchema, CertificationSchema, ProjectSchema } from '@job-applier/core';
+
+/**
+ * Extended profile schema with additional fields
+ */
+const ExtendedProfileInputSchema = UserProfileSchema.omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  resumeContent: z.string().optional(),
+  coverLetterTemplate: z.string().optional(),
+  isDefault: z.boolean().optional(),
+});
 
 /**
  * Profile router with CRUD operations
  */
 export const profileRouter = router({
   /**
-   * Get user profile by ID
+   * Get the current user's profile (default profile for authenticated user)
    */
-  getProfile: publicProcedure
-    .input(z.object({ id: z.string() }).optional())
-    .query(async ({ ctx, input }) => {
-      if (input?.id) {
-        return ctx.profileRepository.findById(input.id);
+  getCurrentProfile: publicProcedure
+    .query(async ({ ctx }) => {
+      if (ctx.userId === 'default') {
+        // Legacy support: get default profile
+        return ctx.profileRepository.getDefault();
       }
-
-      // Get default profile if no ID provided
-      return ctx.profileRepository.getDefault();
+      return ctx.profileRepository.getDefaultForUser(ctx.userId);
     }),
 
   /**
-   * Get all profiles
+   * Get user profile by ID
+   */
+  getProfile: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.id);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.id} not found`,
+        });
+      }
+
+      // Verify ownership if not default user
+      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this profile',
+        });
+      }
+
+      return profile;
+    }),
+
+  /**
+   * Get all profiles for the current user
    */
   listProfiles: publicProcedure
     .query(async ({ ctx }) => {
-      return ctx.profileRepository.findAll();
+      if (ctx.userId === 'default') {
+        return ctx.profileRepository.findAll();
+      }
+      return ctx.profileRepository.findByUserId(ctx.userId);
     }),
 
   /**
    * Create a new profile
    */
   createProfile: publicProcedure
-    .input(UserProfileSchema.omit({ id: true, createdAt: true, updatedAt: true }))
+    .input(ExtendedProfileInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return ctx.profileRepository.create(input);
+      const userId = ctx.userId === 'default' ? undefined : ctx.userId;
+      return ctx.profileRepository.create(input, userId);
     }),
 
   /**
@@ -49,16 +87,28 @@ export const profileRouter = router({
     .input(
       z.object({
         id: z.string(),
-        data: UserProfileSchema.partial().omit({ id: true, createdAt: true, updatedAt: true }),
+        data: ExtendedProfileInputSchema.partial(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const updated = ctx.profileRepository.update(input.id, input.data);
+      const profile = ctx.profileRepository.findById(input.id);
 
-      if (!updated) {
-        throw new Error(`Profile with ID ${input.id} not found`);
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.id} not found`,
+        });
       }
 
+      // Verify ownership
+      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this profile',
+        });
+      }
+
+      const updated = ctx.profileRepository.update(input.id, input.data);
       return updated;
     }),
 
@@ -68,18 +118,370 @@ export const profileRouter = router({
   deleteProfile: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const deleted = ctx.profileRepository.delete(input.id);
+      const profile = ctx.profileRepository.findById(input.id);
 
-      if (!deleted) {
-        throw new Error(`Profile with ID ${input.id} not found`);
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.id} not found`,
+        });
       }
 
+      // Verify ownership
+      if (ctx.userId !== 'default' && profile.userId && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this profile',
+        });
+      }
+
+      ctx.profileRepository.delete(input.id);
       return { success: true };
     }),
 
   /**
+   * Set a profile as default
+   */
+  setDefaultProfile: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.userId === 'default') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Cannot set default profile without authentication',
+        });
+      }
+
+      const profile = ctx.profileRepository.findById(input.id);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.id} not found`,
+        });
+      }
+
+      if (profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this profile',
+        });
+      }
+
+      return ctx.profileRepository.setDefault(input.id, ctx.userId);
+    }),
+
+  /**
+   * Update profile contact information
+   */
+  updateContactInfo: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        contact: ContactInfoSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.profileRepository.update(input.id, { contact: input.contact });
+    }),
+
+  /**
+   * Update profile job preferences
+   */
+  updatePreferences: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        preferences: JobPreferencesSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.profileRepository.update(input.id, { preferences: input.preferences });
+    }),
+
+  /**
+   * Add a skill to profile
+   */
+  addSkill: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        skill: SkillSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const skills = [...(profile.skills || []), input.skill];
+      return ctx.profileRepository.update(input.profileId, { skills });
+    }),
+
+  /**
+   * Remove a skill from profile
+   */
+  removeSkill: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        skillName: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const skills = (profile.skills || []).filter(s => s.name !== input.skillName);
+      return ctx.profileRepository.update(input.profileId, { skills });
+    }),
+
+  /**
+   * Add work experience
+   */
+  addExperience: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        experience: WorkExperienceSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const experience = [...(profile.experience || []), input.experience];
+      return ctx.profileRepository.update(input.profileId, { experience });
+    }),
+
+  /**
+   * Update work experience
+   */
+  updateExperience: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        experienceId: z.string(),
+        experience: WorkExperienceSchema.partial(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const experience = (profile.experience || []).map(exp =>
+        exp.id === input.experienceId ? { ...exp, ...input.experience } : exp
+      );
+      return ctx.profileRepository.update(input.profileId, { experience });
+    }),
+
+  /**
+   * Remove work experience
+   */
+  removeExperience: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        experienceId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const experience = (profile.experience || []).filter(e => e.id !== input.experienceId);
+      return ctx.profileRepository.update(input.profileId, { experience });
+    }),
+
+  /**
+   * Add education
+   */
+  addEducation: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        education: EducationSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const education = [...(profile.education || []), input.education];
+      return ctx.profileRepository.update(input.profileId, { education });
+    }),
+
+  /**
+   * Update education
+   */
+  updateEducation: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        educationId: z.string(),
+        education: EducationSchema.partial(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const education = (profile.education || []).map(edu =>
+        edu.id === input.educationId ? { ...edu, ...input.education } : edu
+      );
+      return ctx.profileRepository.update(input.profileId, { education });
+    }),
+
+  /**
+   * Remove education
+   */
+  removeEducation: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        educationId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const education = (profile.education || []).filter(e => e.id !== input.educationId);
+      return ctx.profileRepository.update(input.profileId, { education });
+    }),
+
+  /**
+   * Add project
+   */
+  addProject: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        project: ProjectSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const projects = [...(profile.projects || []), input.project];
+      return ctx.profileRepository.update(input.profileId, { projects });
+    }),
+
+  /**
+   * Add certification
+   */
+  addCertification: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        certification: CertificationSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.profileId);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile not found`,
+        });
+      }
+
+      const certifications = [...(profile.certifications || []), input.certification];
+      return ctx.profileRepository.update(input.profileId, { certifications });
+    }),
+
+  /**
+   * Update resume content
+   */
+  updateResumeContent: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        resumeContent: z.string(),
+        resumePath: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.profileRepository.update(input.profileId, {
+        resumeContent: input.resumeContent,
+        resumePath: input.resumePath,
+        parsedAt: new Date().toISOString(),
+      });
+    }),
+
+  /**
+   * Update cover letter template
+   */
+  updateCoverLetterTemplate: publicProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        coverLetterTemplate: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.profileRepository.update(input.profileId, {
+        coverLetterTemplate: input.coverLetterTemplate,
+      });
+    }),
+
+  /**
    * Import resume and create/update profile
-   * This would integrate with the resume parser
    */
   importResume: publicProcedure
     .input(
@@ -89,13 +491,13 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // TODO: Integrate with @job-applier/resume-parser
-      // For now, just update the resume path on existing profile or return error
-
       if (input.profileId) {
         const profile = ctx.profileRepository.findById(input.profileId);
         if (!profile) {
-          throw new Error(`Profile with ID ${input.profileId} not found`);
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Profile with ID ${input.profileId} not found`,
+          });
         }
 
         return ctx.profileRepository.update(input.profileId, {
@@ -104,6 +506,40 @@ export const profileRouter = router({
         });
       }
 
-      throw new Error('Resume parsing not yet implemented. Please provide a profileId to update.');
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Resume parsing not yet implemented. Please provide a profileId to update.',
+      });
+    }),
+
+  /**
+   * Duplicate a profile
+   */
+  duplicateProfile: publicProcedure
+    .input(z.object({ id: z.string(), newName: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const profile = ctx.profileRepository.findById(input.id);
+
+      if (!profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.id} not found`,
+        });
+      }
+
+      // Create a copy of the profile
+      const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile;
+
+      // Update name if provided
+      if (input.newName) {
+        const nameParts = input.newName.split(' ');
+        profileData.firstName = nameParts[0] || profileData.firstName;
+        profileData.lastName = nameParts.slice(1).join(' ') || profileData.lastName;
+      } else {
+        profileData.firstName = `${profileData.firstName} (Copy)`;
+      }
+
+      const newUserId = ctx.userId === 'default' ? undefined : ctx.userId;
+      return ctx.profileRepository.create(profileData, newUserId);
     }),
 });

@@ -27,6 +27,7 @@ export * from './connection.js';
 export * from './schema.js';
 
 // Core repositories
+export * from './repositories/user-repository.js';
 export * from './repositories/profile-repository.js';
 export * from './repositories/job-repository.js';
 export * from './repositories/application-repository.js';
