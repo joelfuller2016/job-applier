@@ -1,10 +1,13 @@
 /**
  * Automation Router
  * Handles automation control and status endpoints
+ * 
+ * SECURITY: Uses rate limiting to prevent API abuse
+ * See: https://github.com/joelfuller2016/job-applier/issues/18
  */
 
 import { z } from 'zod';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure, expensiveProcedure } from '../trpc';
 
 // Types
 const AutomationStatusSchema = z.object({
@@ -43,6 +46,7 @@ const AutomationSessionSchema = z.object({
 export const automationRouter = router({
   /**
    * Get current automation status
+   * Public endpoint for UI status display
    */
   getStatus: publicProcedure.query(async () => {
     // In a real implementation, this would query the automation engine
@@ -57,8 +61,9 @@ export const automationRouter = router({
 
   /**
    * Get automation configuration
+   * SECURITY: Requires authentication
    */
-  getConfig: publicProcedure.query(async () => {
+  getConfig: protectedProcedure.query(async () => {
     // In a real implementation, this would read from config/database
     return {
       platforms: ['linkedin'] as ('linkedin' | 'indeed')[],
@@ -83,9 +88,10 @@ export const automationRouter = router({
 
   /**
    * Start automation
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + expensive rate limiting (3 per 5 min)
+   * This endpoint triggers browser automation and AI calls
    */
-  start: protectedProcedure
+  start: expensiveProcedure
     .input(
       z.object({
         platforms: z.array(z.enum(['linkedin', 'indeed'])),
@@ -141,8 +147,9 @@ export const automationRouter = router({
 
   /**
    * Get automation history/sessions
+   * SECURITY: Requires authentication
    */
-  getSessions: publicProcedure
+  getSessions: protectedProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(10),
@@ -159,8 +166,9 @@ export const automationRouter = router({
 
   /**
    * Get session by ID
+   * SECURITY: Requires authentication
    */
-  getSession: publicProcedure
+  getSession: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       // In a real implementation, this would query a specific session
@@ -169,8 +177,9 @@ export const automationRouter = router({
 
   /**
    * Get automation logs
+   * SECURITY: Requires authentication
    */
-  getLogs: publicProcedure
+  getLogs: protectedProcedure
     .input(
       z.object({
         sessionId: z.string().optional(),
@@ -195,6 +204,7 @@ export const automationRouter = router({
 
   /**
    * Get rate limit status
+   * Public endpoint for UI display
    */
   getRateLimitStatus: publicProcedure.query(async () => {
     // In a real implementation, this would check rate limits
