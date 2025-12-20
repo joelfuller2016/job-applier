@@ -99,7 +99,7 @@ export const dashboardRouter = router({
             searchQuery: config?.searchQuery ?? 'Job Hunt',
             jobsFound: statsData.jobsDiscovered ?? 0,
             applicationsSubmitted: statsData.applicationsSubmitted ?? 0,
-            targetCount: session.totalItems || undefined,
+            targetCount: session.totalItems ?? undefined,
             startedAt: session.startedAt,
             lastActivityAt: session.lastActivityAt,
             errorMessage: session.errorMessage ?? undefined,
