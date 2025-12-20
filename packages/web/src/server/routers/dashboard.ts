@@ -109,25 +109,27 @@ export const dashboardRouter = router({
       }
 
       const applications = await ctx.applicationRepository.findByProfile(profile.id);
-
       const recentApps = applications.slice(0, input.limit);
-      const results = await Promise.all(
-        recentApps.map(async (app) => {
-          const job = await ctx.jobRepository.findById(app.jobId);
-          const company = job?.company || 'Unknown Company';
-          const jobTitle = job?.title || 'Unknown Position';
 
-          return {
-            id: app.id,
-            type: app.status === 'submitted' ? 'application_sent' as const : 'job_discovered' as const,
-            title: app.status === 'submitted'
-              ? `Application sent to ${company}`
-              : `Discovered ${jobTitle} at ${company}`,
-            description: jobTitle,
-            timestamp: app.createdAt,
-          };
-        })
-      );
+      // Bulk fetch jobs to avoid N+1 query
+      const jobIds = recentApps.map(app => app.jobId);
+      const jobsMap = ctx.jobRepository.findByIds(jobIds);
+
+      const results = recentApps.map((app) => {
+        const job = jobsMap.get(app.jobId);
+        const company = job?.company || 'Unknown Company';
+        const jobTitle = job?.title || 'Unknown Position';
+
+        return {
+          id: app.id,
+          type: app.status === 'submitted' ? 'application_sent' as const : 'job_discovered' as const,
+          title: app.status === 'submitted'
+            ? `Application sent to ${company}`
+            : `Discovered ${jobTitle} at ${company}`,
+          description: jobTitle,
+          timestamp: app.createdAt,
+        };
+      });
 
       return results;
     }),
