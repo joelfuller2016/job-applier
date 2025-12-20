@@ -36,6 +36,8 @@ export const profileRouter = router({
 
   /**
    * Get user profile by ID
+   * SECURITY: Authenticated users can only access their own profiles
+   * Anonymous users can only access orphaned profiles (no userId) for demo purposes
    */
   getProfile: publicProcedure
     .input(z.object({ id: z.string() }))
@@ -49,8 +51,17 @@ export const profileRouter = router({
         });
       }
 
-      // Verify ownership - allow read access to orphaned profiles only for anonymous users
-      if (ctx.userId !== ANONYMOUS_USER_ID) {
+      // SECURITY: Verify ownership based on user type
+      if (ctx.userId === ANONYMOUS_USER_ID) {
+        // Anonymous users can ONLY access orphaned profiles (profiles without userId)
+        // This prevents anonymous access to any user's profile data
+        if (profile.userId) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have access to this profile. Please sign in.',
+          });
+        }
+      } else {
         // Authenticated users can only access their own profiles
         if (profile.userId && profile.userId !== ctx.userId) {
           throw new TRPCError({
@@ -65,13 +76,12 @@ export const profileRouter = router({
 
   /**
    * Get all profiles for the current user
+   * SECURITY: Requires authentication to list profiles
+   * Anonymous users cannot list profiles - they should use getCurrentProfile instead
    */
-  listProfiles: publicProcedure
+  listProfiles: protectedProcedure
     .query(async ({ ctx }) => {
-      if (ctx.userId === ANONYMOUS_USER_ID) {
-        // Anonymous users can only see public/default profiles
-        return ctx.profileRepository.findAll();
-      }
+      // Return only the authenticated user's profiles
       return ctx.profileRepository.findByUserId(ctx.userId);
     }),
 
