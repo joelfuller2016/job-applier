@@ -77,17 +77,35 @@ const mutationRateLimiter = new RateLimiter(60000, 30);  // 30 mutations/min
 const aiRateLimiter = new RateLimiter(60000, 10);        // 10 AI calls/min (expensive operations)
 
 /**
+ * Check if running in production environment
+ */
+const isProduction = process.env.NODE_ENV === 'production';
+
+/**
  * Initialize tRPC with context
+ *
+ * SECURITY: Error sanitization in production to prevent information disclosure.
+ * Internal error details are hidden and replaced with generic messages.
  */
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    // SECURITY: Sanitize internal server errors in production
+    // to prevent leaking sensitive implementation details
+    const sanitizedMessage =
+      isProduction && shape.code === 'INTERNAL_SERVER_ERROR'
+        ? 'An internal server error occurred. Please try again later.'
+        : shape.message;
+
     return {
       ...shape,
+      message: sanitizedMessage,
       data: {
         ...shape.data,
         zodError:
           error.cause instanceof ZodError ? error.cause.flatten() : null,
+        // SECURITY: Don't expose stack traces in production
+        stack: isProduction ? undefined : error.stack,
       },
     };
   },

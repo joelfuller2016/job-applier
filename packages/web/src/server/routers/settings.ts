@@ -165,17 +165,25 @@ export const settingsRouter = router({
     }),
 
   /**
-   * Get data directory paths
-   * SECURITY: Requires authentication (contains system paths)
+   * Get data directory status
+   * SECURITY: Returns only availability status to prevent information disclosure
+   * of internal file system paths which could aid attackers.
    */
   getDataPaths: protectedProcedure
     .query(async ({ ctx }) => {
+      // SECURITY: Don't expose absolute paths - only return availability status
+      // This prevents information disclosure that could aid attackers
+      const dataDir = ctx.configManager.getDataDir();
+      const logsDir = ctx.configManager.ensureDataSubdir('logs');
+      const screenshotsDir = ctx.configManager.ensureDataSubdir('screenshots');
+      const uploadsDir = ctx.configManager.ensureDataSubdir('uploads');
+
       return {
-        dataDir: ctx.configManager.getDataDir(),
-        databasePath: ctx.config.database.path,
-        logPath: ctx.configManager.ensureDataSubdir('logs'),
-        screenshotsPath: ctx.configManager.ensureDataSubdir('screenshots'),
-        uploadsPath: ctx.configManager.ensureDataSubdir('uploads'),
+        dataDir: { configured: !!dataDir },
+        database: { configured: !!ctx.config.database.path },
+        logs: { available: !!logsDir },
+        screenshots: { available: !!screenshotsDir },
+        uploads: { available: !!uploadsDir },
       };
     }),
 });
