@@ -349,10 +349,15 @@ packages/web/src/services/
 
 ---
 
-## Issue #5: Incomplete Features (TODOs) ⚠️ MEDIUM
+## Issue #5: Incomplete Features (TODOs) ⚠️ MEDIUM - **PARTIALLY FIXED (PR PENDING)**
 
 ### Current State
 Many settings pages have placeholder TODO comments.
+
+**UPDATE (2025-12-20):** PR pending on branch `claude/fix-pending-issue-aLoci` implements:
+- API keys settings mutations (test & save)
+- Notification settings mutations
+- General settings mutations
 
 ### Impact
 - Users cannot configure platform credentials
@@ -440,11 +445,11 @@ export class UploadService {
 
 ### Acceptance Criteria
 - [ ] All TODO items resolved or tracked as issues
-- [ ] Settings mutations implemented and tested
+- [x] Settings mutations implemented and tested (API keys, notifications, general - PR pending)
 - [ ] File upload working with proper validation
 - [ ] API key storage encrypted
 - [ ] Platform credentials encrypted
-- [ ] All settings persisted to database
+- [x] Settings persisted to database (general, notifications, API keys - PR pending)
 
 ---
 
