@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { trpc } from '@/lib/trpc/react';
 
 const platformSettingsSchema = z.object({
   linkedinEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
@@ -50,7 +51,6 @@ interface PlatformStatus {
 
 export function PlatformSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
   const [showLinkedInPassword, setShowLinkedInPassword] = React.useState(false);
   const [showIndeedPassword, setShowIndeedPassword] = React.useState(false);
   const [platformStatus, setPlatformStatus] = React.useState<PlatformStatus>({
@@ -58,10 +58,79 @@ export function PlatformSettings() {
     indeed: 'disconnected',
   });
 
+  // Get current platform status
+  const { data: currentStatus } = trpc.settings.getPlatformStatus.useQuery();
+
+  // Update platform status based on server data
+  React.useEffect(() => {
+    if (currentStatus) {
+      setPlatformStatus({
+        linkedin: currentStatus.linkedin.configured ? 'connected' : 'disconnected',
+        indeed: currentStatus.indeed.configured ? 'connected' : 'disconnected',
+      });
+    }
+  }, [currentStatus]);
+
+  // Test platform connection mutation
+  const testConnection = trpc.settings.testPlatformConnection.useMutation({
+    onSuccess: (result, variables) => {
+      setPlatformStatus((prev) => ({
+        ...prev,
+        [variables.platform]: result.success ? 'connected' : 'error'
+      }));
+      toast({
+        title: result.success ? 'Connected' : 'Connection failed',
+        description: result.message,
+        variant: result.success ? 'default' : 'destructive',
+      });
+    },
+    onError: (error, variables) => {
+      setPlatformStatus((prev) => ({ ...prev, [variables.platform]: 'error' }));
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to test connection. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Update platform credentials mutation
+  const updateCredentials = trpc.settings.updatePlatformCredentials.useMutation({
+    onSuccess: (result) => {
+      toast({
+        title: 'Settings saved',
+        description: result.message,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save platform credentials. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const form = useForm<PlatformSettingsValues>({
     resolver: zodResolver(platformSettingsSchema),
-    defaultValues,
+    defaultValues: {
+      ...defaultValues,
+      linkedinEmail: currentStatus?.linkedin.email ?? '',
+      indeedEmail: currentStatus?.indeed.email ?? '',
+    },
   });
+
+  // Update form values when server data loads
+  React.useEffect(() => {
+    if (currentStatus) {
+      if (currentStatus.linkedin.email) {
+        form.setValue('linkedinEmail', currentStatus.linkedin.email);
+      }
+      if (currentStatus.indeed.email) {
+        form.setValue('indeedEmail', currentStatus.indeed.email);
+      }
+    }
+  }, [currentStatus, form]);
 
   const testLinkedInConnection = async () => {
     const email = form.getValues('linkedinEmail');
@@ -77,35 +146,7 @@ export function PlatformSettings() {
     }
 
     setPlatformStatus((prev) => ({ ...prev, linkedin: 'connecting' }));
-
-    try {
-      // TODO: Implement tRPC mutation to test LinkedIn connection
-      // const result = await trpc.settings.testLinkedInConnection.mutate({ email, password });
-
-      // Simulate connection test
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const isValid = email.includes('@'); // Basic validation
-
-      setPlatformStatus((prev) => ({
-        ...prev,
-        linkedin: isValid ? 'connected' : 'error'
-      }));
-
-      toast({
-        title: isValid ? 'Connected' : 'Connection failed',
-        description: isValid
-          ? 'Successfully connected to LinkedIn.'
-          : 'Unable to authenticate with LinkedIn.',
-        variant: isValid ? 'default' : 'destructive',
-      });
-    } catch (error) {
-      setPlatformStatus((prev) => ({ ...prev, linkedin: 'error' }));
-      toast({
-        title: 'Error',
-        description: 'Failed to connect to LinkedIn. Please check your credentials.',
-        variant: 'destructive',
-      });
-    }
+    testConnection.mutate({ platform: 'linkedin', email, password });
   };
 
   const testIndeedConnection = async () => {
@@ -122,59 +163,30 @@ export function PlatformSettings() {
     }
 
     setPlatformStatus((prev) => ({ ...prev, indeed: 'connecting' }));
-
-    try {
-      // TODO: Implement tRPC mutation to test Indeed connection
-      // const result = await trpc.settings.testIndeedConnection.mutate({ email, password });
-
-      // Simulate connection test
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const isValid = email.includes('@'); // Basic validation
-
-      setPlatformStatus((prev) => ({
-        ...prev,
-        indeed: isValid ? 'connected' : 'error'
-      }));
-
-      toast({
-        title: isValid ? 'Connected' : 'Connection failed',
-        description: isValid
-          ? 'Successfully connected to Indeed.'
-          : 'Unable to authenticate with Indeed.',
-        variant: isValid ? 'default' : 'destructive',
-      });
-    } catch (error) {
-      setPlatformStatus((prev) => ({ ...prev, indeed: 'error' }));
-      toast({
-        title: 'Error',
-        description: 'Failed to connect to Indeed. Please check your credentials.',
-        variant: 'destructive',
-      });
-    }
+    testConnection.mutate({ platform: 'indeed', email, password });
   };
 
   const onSubmit = async (data: PlatformSettingsValues) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement tRPC mutation to save platform credentials
-      // await trpc.settings.updatePlatformCredentials.mutate(data);
-
-      console.log('Platform credentials saved (passwords hidden)');
-
-      toast({
-        title: 'Settings saved',
-        description: 'Your platform credentials have been updated successfully.',
+    // Save LinkedIn credentials if provided
+    if (data.linkedinEmail || data.linkedinPassword) {
+      updateCredentials.mutate({
+        platform: 'linkedin',
+        email: data.linkedinEmail || '',
+        password: data.linkedinPassword,
       });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save platform credentials. Please try again.',
-        variant: 'destructive',
+    }
+
+    // Save Indeed credentials if provided
+    if (data.indeedEmail || data.indeedPassword) {
+      updateCredentials.mutate({
+        platform: 'indeed',
+        email: data.indeedEmail || '',
+        password: data.indeedPassword,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  const isLoading = updateCredentials.isPending;
 
   const getStatusBadge = (status: PlatformStatus['linkedin' | 'indeed']) => {
     switch (status) {

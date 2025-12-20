@@ -25,6 +25,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { trpc } from '@/lib/trpc/react';
 
 const notificationSettingsSchema = z.object({
   emailNotifications: z.boolean().default(true),
@@ -54,11 +55,31 @@ const defaultValues: NotificationSettingsValues = {
 
 export function NotificationSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
+
+  // Fetch current settings
+  const { data: currentSettings, isLoading: isLoadingSettings } = trpc.settings.getUserNotificationSettings.useQuery();
+
+  // Update settings mutation
+  const updateSettings = trpc.settings.updateNotificationSettings.useMutation({
+    onSuccess: () => {
+      toast({
+        title: 'Settings saved',
+        description: 'Your notification preferences have been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save notification settings. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   const form = useForm<NotificationSettingsValues>({
     resolver: zodResolver(notificationSettingsSchema),
     defaultValues,
+    values: currentSettings ?? defaultValues,
   });
 
   const emailEnabled = form.watch('emailNotifications');
@@ -105,27 +126,10 @@ export function NotificationSettings() {
   };
 
   const onSubmit = async (data: NotificationSettingsValues) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement tRPC mutation to save notification settings
-      // await trpc.settings.updateNotifications.mutate(data);
-
-      console.log('Notification settings:', data);
-
-      toast({
-        title: 'Settings saved',
-        description: 'Your notification preferences have been updated successfully.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save notification settings. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    updateSettings.mutate(data);
   };
+
+  const isLoading = updateSettings.isPending || isLoadingSettings;
 
   return (
     <Card>

@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { trpc } from '@/lib/trpc/react';
 
 const generalSettingsSchema = z.object({
   defaultKeywords: z.string().optional(),
@@ -51,35 +52,38 @@ const defaultValues: GeneralSettingsValues = {
 
 export function GeneralSettings() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
 
-  const form = useForm<GeneralSettingsValues>({
-    resolver: zodResolver(generalSettingsSchema),
-    defaultValues,
-  });
+  // Fetch current settings
+  const { data: currentSettings, isLoading: isLoadingSettings } = trpc.settings.getUserGeneralSettings.useQuery();
 
-  const onSubmit = async (data: GeneralSettingsValues) => {
-    setIsLoading(true);
-    try {
-      // TODO: Implement tRPC mutation to save settings
-      // await trpc.settings.updateGeneral.mutate(data);
-
-      console.log('General settings:', data);
-
+  // Update settings mutation
+  const updateSettings = trpc.settings.updateGeneralSettings.useMutation({
+    onSuccess: () => {
       toast({
         title: 'Settings saved',
         description: 'Your general settings have been updated successfully.',
       });
-    } catch (error) {
+    },
+    onError: (error) => {
       toast({
         title: 'Error',
-        description: 'Failed to save settings. Please try again.',
+        description: error.message || 'Failed to save settings. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
-    }
+    },
+  });
+
+  const form = useForm<GeneralSettingsValues>({
+    resolver: zodResolver(generalSettingsSchema),
+    defaultValues,
+    values: currentSettings ?? defaultValues,
+  });
+
+  const onSubmit = async (data: GeneralSettingsValues) => {
+    updateSettings.mutate(data);
   };
+
+  const isLoading = updateSettings.isPending || isLoadingSettings;
 
   return (
     <Card>

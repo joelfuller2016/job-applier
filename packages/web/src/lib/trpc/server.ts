@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth';
 import { profileRepository, userRepository } from '@job-applier/database';
 import { jobRepository } from '@job-applier/database';
 import { applicationRepository } from '@job-applier/database';
+import { settingsRepository, credentialsRepository } from '@job-applier/database';
 import { getConfigManager } from '@job-applier/config';
 import { JobHunterOrchestrator } from '@job-applier/ai-job-hunter';
 import { authOptions } from '@/lib/auth';
@@ -33,6 +34,8 @@ export async function createContext() {
     userRepository,
     jobRepository,
     applicationRepository,
+    settingsRepository,
+    credentialsRepository,
 
     // Services
     configManager,
