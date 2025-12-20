@@ -349,21 +349,21 @@ packages/web/src/services/
 
 ---
 
-## Issue #5: Incomplete Features (TODOs) ⚠️ MEDIUM
+## Issue #5: Incomplete Features (TODOs) ⚠️ MEDIUM - PARTIALLY RESOLVED
 
 ### Current State
 Many settings pages have placeholder TODO comments.
 
 ### Impact
 - Users cannot configure platform credentials
-- API keys not saveable
+- ~~API keys not saveable~~ ✅ FIXED
 - Settings changes not persisted
 - Poor user experience
 
 ### Affected Files
 ```
 packages/web/src/components/settings/platform-settings.tsx (3 TODOs)
-packages/web/src/components/settings/api-keys-settings.tsx (3 TODOs)
+packages/web/src/components/settings/api-keys-settings.tsx (3 TODOs) ✅ FIXED - PR pending
 packages/web/src/components/settings/general-settings.tsx (1 TODO)
 packages/web/src/components/settings/notification-settings.tsx (1 TODO)
 packages/web/src/components/settings/data-privacy-settings.tsx (4 TODOs)
@@ -372,6 +372,11 @@ packages/web/src/components/profile/resume-manager.tsx (3 TODOs)
 packages/web/src/server/routers/hunt.ts (3 TODOs)
 packages/web/src/server/routers/dashboard.ts (1 TODO)
 ```
+
+### Recent Progress
+- **2025-12-20**: API key management implemented (testApiKey, updateApiKeys, getApiKeyStatus mutations)
+  - Branch: `claude/fix-pending-issue-DSGMq`
+  - Status: PR pending merge
 
 ### Required Actions
 
