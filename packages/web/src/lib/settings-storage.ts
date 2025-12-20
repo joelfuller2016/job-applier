@@ -27,5 +27,11 @@ export function saveSettings<T>(key: string, data: T) {
     return;
   }
 
-  window.localStorage.setItem(key, JSON.stringify(data));
+  try {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    // Swallow localStorage errors to avoid breaking the application.
+    // Optionally log for debugging purposes.
+    console.error('Failed to save settings to localStorage:', error);
+  }
 }
