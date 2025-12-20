@@ -6,23 +6,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { ApplicationStatus } from '@job-applier/core';
-
-/**
- * Shared application status schema (DRY)
- */
-const ApplicationStatusSchema = z.enum([
-  'draft',
-  'submitted',
-  'viewed',
-  'in-review',
-  'interview',
-  'offer',
-  'rejected',
-  'withdrawn',
-  'expired',
-  'error',
-] as const);
+import { ApplicationStatus, ApplicationStatusSchema } from '@job-applier/core';
 
 /**
  * Applications router for tracking job applications
