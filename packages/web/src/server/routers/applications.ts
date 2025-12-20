@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { ApplicationStatus, ApplicationStatusSchema } from '@job-applier/core';
 
 /**
@@ -73,8 +73,9 @@ export const applicationsRouter = router({
 
   /**
    * Update application status
+   * SECURITY: Requires authentication
    */
-  updateStatus: publicProcedure
+  updateStatus: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -101,8 +102,9 @@ export const applicationsRouter = router({
 
   /**
    * Add a note/event to an application
+   * SECURITY: Requires authentication
    */
-  addNote: publicProcedure
+  addNote: protectedProcedure
     .input(
       z.object({
         applicationId: z.string(),
@@ -141,8 +143,9 @@ export const applicationsRouter = router({
 
   /**
    * Mark application as submitted
+   * SECURITY: Requires authentication
    */
-  markSubmitted: publicProcedure
+  markSubmitted: protectedProcedure
     .input(
       z.object({
         id: z.string(),

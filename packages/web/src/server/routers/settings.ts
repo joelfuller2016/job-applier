@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 
 /**
  * Settings router for app configuration
@@ -57,8 +57,9 @@ export const settingsRouter = router({
 
   /**
    * Update application settings
+   * SECURITY: Requires authentication
    */
-  updateSettings: publicProcedure
+  updateSettings: protectedProcedure
     .input(
       z.object({
         claude: z.object({
@@ -141,8 +142,9 @@ export const settingsRouter = router({
 
   /**
    * Reset settings to defaults
+   * SECURITY: Requires authentication
    */
-  resetSettings: publicProcedure
+  resetSettings: protectedProcedure
     .mutation(async ({ ctx }) => {
       // This would reset to default config
       // For now, just return success

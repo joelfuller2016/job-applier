@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure } from '../trpc';
 
 /**
  * Hunt router for automated job hunting
@@ -13,8 +13,9 @@ import { router, publicProcedure } from '../trpc';
 export const huntRouter = router({
   /**
    * Start a new job hunt
+   * SECURITY: Requires authentication
    */
-  startHunt: publicProcedure
+  startHunt: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -54,18 +55,19 @@ export const huntRouter = router({
           dryRun: input.dryRun,
         },
         {
-          onProgress: (message) => {
-            console.log(`[Hunt Progress] ${message}`);
-            // TODO: Emit via WebSocket or store in database
+          // Event callbacks - TODO: Implement WebSocket or database event tracking
+          // These are intentionally empty until real-time updates are implemented
+          onProgress: () => {
+            // Future: Emit via WebSocket or store in database
           },
-          onJobDiscovered: (job) => {
-            console.log(`[Hunt] Discovered: ${job.title} at ${job.company}`);
+          onJobDiscovered: () => {
+            // Future: Track discovered jobs in real-time
           },
-          onJobMatched: (job, score) => {
-            console.log(`[Hunt] Matched: ${job.title} at ${job.company} (${score}%)`);
+          onJobMatched: () => {
+            // Future: Track matched jobs in real-time
           },
-          onApplicationComplete: (attempt) => {
-            console.log(`[Hunt] Application: ${attempt.status} - ${attempt.jobTitle}`);
+          onApplicationComplete: () => {
+            // Future: Track application completions in real-time
           },
         }
       );
@@ -75,8 +77,9 @@ export const huntRouter = router({
 
   /**
    * Quick apply to a specific company/job
+   * SECURITY: Requires authentication
    */
-  quickApply: publicProcedure
+  quickApply: protectedProcedure
     .input(
       z.object({
         profileId: z.string(),
@@ -99,8 +102,9 @@ export const huntRouter = router({
         input.jobTitle,
         profile,
         {
-          onProgress: (message) => {
-            console.log(`[Quick Apply] ${message}`);
+          // Event callback - TODO: Implement WebSocket or database event tracking
+          onProgress: () => {
+            // Future: Emit progress via WebSocket or store in database
           },
         }
       );
