@@ -20,6 +20,9 @@ class RateLimiter {
   private requests: Map<string, { count: number; windowStart: number }> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
+  // Maximum entries before forcing cleanup to prevent memory exhaustion
+  private static readonly MAX_ENTRIES = 10000;
+
   constructor(
     private readonly windowMs: number = 60000,
     private readonly maxRequests: number = 60
@@ -34,6 +37,12 @@ class RateLimiter {
 
   check(key: string): { allowed: boolean; remaining: number; resetAt: number } {
     const now = Date.now();
+
+    // Force cleanup if we've exceeded the maximum entries threshold
+    if (this.requests.size >= RateLimiter.MAX_ENTRIES) {
+      this.forceCleanup();
+    }
+
     const record = this.requests.get(key);
 
     if (!record || now - record.windowStart >= this.windowMs) {
@@ -66,6 +75,31 @@ class RateLimiter {
     for (const [key, record] of Array.from(this.requests.entries())) {
       if (now - record.windowStart >= this.windowMs * 2) {
         this.requests.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Force cleanup when entries exceed threshold to prevent memory exhaustion.
+   * Removes the oldest 50% of entries to ensure bounded memory growth.
+   * This is triggered during high-traffic scenarios where entries accumulate
+   * faster than the periodic cleanup can remove them.
+   */
+  private forceCleanup(): void {
+    // First, run the normal cleanup to remove expired entries
+    this.cleanup();
+
+    // If still over threshold after normal cleanup, remove oldest entries
+    if (this.requests.size >= RateLimiter.MAX_ENTRIES) {
+      const entries = Array.from(this.requests.entries());
+
+      // Sort by windowStart (oldest first)
+      entries.sort((a, b) => a[1].windowStart - b[1].windowStart);
+
+      // Remove the oldest 50% of entries
+      const entriesToRemove = Math.floor(entries.length / 2);
+      for (let i = 0; i < entriesToRemove; i++) {
+        this.requests.delete(entries[i][0]);
       }
     }
   }
