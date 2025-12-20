@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure, aiRateLimitedProcedure } from '../trpc';
+import { router, publicProcedure, aiRateLimitedProcedure } from '../trpc';
 
 /**
  * Hunt router for automated job hunting

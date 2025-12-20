@@ -29,6 +29,10 @@ class RateLimiter {
   ) {
     // Cleanup stale entries every 5 minutes to prevent memory leaks
     this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+    // Ensure cleanup interval does not prevent process exit
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
   }
 
   check(key: string): { allowed: boolean; remaining: number; resetAt: number } {
@@ -109,7 +113,7 @@ const t = initTRPC.context<Context>().create({
           stack: undefined,
         },
         // Sanitize the message for internal errors
-        message: error.code === 'INTERNAL_SERVER_ERROR'
+        message: shape.code === 'INTERNAL_SERVER_ERROR'
           ? 'An unexpected error occurred. Please try again later.'
           : shape.message,
       };
