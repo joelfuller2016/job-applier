@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
 import { UserProfileSchema, JobPreferencesSchema, ContactInfoSchema, SkillSchema, WorkExperienceSchema, EducationSchema, CertificationSchema, ProjectSchema } from '@job-applier/core';
-import { ANONYMOUS_USER_ID } from '../../lib/constants';
 
 /**
  * Extended profile schema with additional fields
@@ -60,21 +59,19 @@ function verifyProfileOwnership(
  */
 export const profileRouter = router({
   /**
-   * Get the current user's profile (default profile for authenticated user)
+   * Get the current user's default profile
+   * SECURITY: Requires authentication, returns only user's profile
    */
-  getCurrentProfile: publicProcedure
+  getCurrentProfile: protectedProcedure
     .query(async ({ ctx }) => {
-      if (ctx.userId === ANONYMOUS_USER_ID) {
-        // Anonymous users get the default profile (read-only)
-        return ctx.profileRepository.getDefault();
-      }
       return ctx.profileRepository.getDefaultForUser(ctx.userId);
     }),
 
   /**
    * Get user profile by ID
+   * SECURITY: Requires authentication and ownership
    */
-  getProfile: publicProcedure
+  getProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const profile = ctx.profileRepository.findById(input.id);
@@ -86,29 +83,19 @@ export const profileRouter = router({
         });
       }
 
-      // Verify ownership - allow read access to orphaned profiles only for anonymous users
-      if (ctx.userId !== ANONYMOUS_USER_ID) {
-        // Authenticated users can only access their own profiles
-        if (profile.userId && profile.userId !== ctx.userId) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'You do not have access to this profile',
-          });
-        }
-      }
+      // SECURITY: Verify ownership
+      verifyProfileOwnership(profile, ctx.userId, 'access');
 
       return profile;
     }),
 
   /**
    * Get all profiles for the current user
+   * SECURITY: Requires authentication, returns only user's profiles
    */
-  listProfiles: publicProcedure
+  listProfiles: protectedProcedure
     .query(async ({ ctx }) => {
-      if (ctx.userId === ANONYMOUS_USER_ID) {
-        // Anonymous users can only see public/default profiles
-        return ctx.profileRepository.findAll();
-      }
+      // SECURITY: Only return profiles owned by the authenticated user
       return ctx.profileRepository.findByUserId(ctx.userId);
     }),
 
