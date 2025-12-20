@@ -12,6 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import { Badge } from '@/components/ui/badge';
+import { isDemoMode } from '@/lib/demo';
 
 interface SkillMatchAnalysisProps {
   dateRange: string;
@@ -27,7 +28,12 @@ interface SkillData {
 
 export function SkillMatchAnalysis({ dateRange, isLoading }: SkillMatchAnalysisProps) {
   const radarData: SkillData[] = useMemo(() => {
-    // Mock data - replace with actual API calls
+    // Demo data - ONLY used when APP_MODE=demo
+    // In production, this would come from API calls
+    if (!isDemoMode()) {
+      return []; // Return empty array in production
+    }
+
     return [
       { skill: 'React', yourLevel: 90, required: 80, requested: 42 },
       { skill: 'TypeScript', yourLevel: 85, required: 75, requested: 38 },
