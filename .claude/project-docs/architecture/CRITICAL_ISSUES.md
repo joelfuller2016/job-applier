@@ -349,29 +349,44 @@ packages/web/src/services/
 
 ---
 
-## Issue #5: Incomplete Features (TODOs) ⚠️ MEDIUM
+## Issue #5: Incomplete Features (TODOs) ⚠️ PENDING
 
-### Current State
-Many settings pages have placeholder TODO comments.
+**Status:** PENDING - Core settings mutations implemented (2025-12-20)
 
-### Impact
-- Users cannot configure platform credentials
-- API keys not saveable
-- Settings changes not persisted
-- Poor user experience
+### Progress Update
+The following settings components have been implemented:
+- ✅ `general-settings.tsx` - NOW CONNECTED to tRPC
+- ✅ `notification-settings.tsx` - NOW CONNECTED to tRPC
+- ✅ `api-keys-settings.tsx` - NOW CONNECTED to tRPC with API key testing
+- ✅ `platform-settings.tsx` - NOW CONNECTED to tRPC with encrypted storage
 
-### Affected Files
+New endpoints added to `settings.ts` router:
+- `getUserGeneralSettings` / `updateGeneralSettings`
+- `getUserNotificationSettings` / `updateNotificationSettings`
+- `getApiKeyStatus` / `updateApiKeys`
+- `testClaudeApiKey` / `testExaApiKey` (rate limited)
+- `getPlatformStatus` / `updatePlatformCredentials` / `testPlatformConnection`
+
+### Remaining TODOs
 ```
-packages/web/src/components/settings/platform-settings.tsx (3 TODOs)
-packages/web/src/components/settings/api-keys-settings.tsx (3 TODOs)
-packages/web/src/components/settings/general-settings.tsx (1 TODO)
-packages/web/src/components/settings/notification-settings.tsx (1 TODO)
 packages/web/src/components/settings/data-privacy-settings.tsx (4 TODOs)
 packages/web/src/components/settings/appearance-settings.tsx (1 TODO)
 packages/web/src/components/profile/resume-manager.tsx (3 TODOs)
 packages/web/src/server/routers/hunt.ts (3 TODOs)
 packages/web/src/server/routers/dashboard.ts (1 TODO)
 ```
+
+### Original State
+Many settings pages have placeholder TODO comments.
+
+### Impact (Partially Resolved)
+- ✅ Users can now save general settings
+- ✅ Users can now save notification preferences
+- ✅ API keys can be tested and saved
+- ✅ Platform credentials can be saved (encrypted)
+- ⚠️ Data privacy settings still TODO
+- ⚠️ Appearance settings still TODO
+- ⚠️ Resume manager still TODO
 
 ### Required Actions
 
