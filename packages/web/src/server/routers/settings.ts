@@ -162,7 +162,7 @@ export const settingsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
 
       if (input.claudeApiKey) {
         updates.claude = { apiKey: input.claudeApiKey };
@@ -188,7 +188,7 @@ export const settingsRouter = router({
    * SECURITY: Requires ADMIN access - affects global configuration
    */
   resetSettings: adminProcedure
-    .mutation(async ({ ctx }) => {
+    .mutation(async () => {
       // This would reset to default config
       // For now, just return success
       return {
@@ -199,9 +199,9 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
-   * SECURITY: Requires authentication (contains system paths)
+   * SECURITY: Requires ADMIN privileges (sensitive paths)
    */
-  getDataPaths: protectedProcedure
+  getDataPaths: adminProcedure
     .query(async ({ ctx }) => {
       return {
         dataDir: ctx.configManager.getDataDir(),
