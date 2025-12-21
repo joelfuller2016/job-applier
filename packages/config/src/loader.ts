@@ -78,6 +78,7 @@ function normalizeLegacyEnv(rawEnv: NodeJS.ProcessEnv): NormalizedEnvResult {
       );
     } else if (rawEnv.DELAY_BETWEEN_ACTIONS !== undefined) {
       const seconds = Number(rawEnv.DELAY_BETWEEN_ACTIONS);
+      // Reject invalid values: NaN, Infinity, and non-positive numbers (including 0)
       if (Number.isFinite(seconds) && seconds > 0) {
         const ms = String(Math.round(seconds * 1000));
         setIfMissing('MIN_DELAY_BETWEEN_ACTIONS', ms);
