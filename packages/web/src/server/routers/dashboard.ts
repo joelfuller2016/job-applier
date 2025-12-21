@@ -76,6 +76,36 @@ export const dashboardRouter = router({
       // Pending actions count
       const pendingActions = (stats.byStatus?.pending || 0) + (stats.byStatus?.draft || 0);
 
+      // Active hunt sessions for the dashboard widget
+      const huntSessions = ctx.sessionRepository.findByUser(ctx.userId, {
+        type: 'hunt',
+        limit: 5,
+      });
+
+      const activeHunts = huntSessions
+        .filter(session => ['active', 'paused', 'error'].includes(session.status))
+        .map(session => {
+          const config = session.config as { searchQuery?: string } | undefined;
+          const statsData = session.stats ?? {};
+          const statusMap = {
+            active: 'running',
+            paused: 'paused',
+            error: 'failed',
+          } as const;
+
+          return {
+            id: session.id,
+            status: statusMap[session.status as keyof typeof statusMap] ?? 'running',
+            searchQuery: config?.searchQuery ?? 'Job Hunt',
+            jobsFound: statsData.jobsDiscovered ?? 0,
+            applicationsSubmitted: statsData.applicationsSubmitted ?? 0,
+            targetCount: session.totalItems ?? undefined,
+            startedAt: session.startedAt,
+            lastActivityAt: session.lastActivityAt,
+            errorMessage: session.errorMessage ?? undefined,
+          };
+        });
+
       return {
         stats: {
           jobsDiscovered: stats.total || 0,
@@ -84,7 +114,7 @@ export const dashboardRouter = router({
           pendingActions,
         },
         recentActivity,
-        activeHunts: [], // TODO: Implement when hunt tracking is available
+        activeHunts,
       };
     }),
 
