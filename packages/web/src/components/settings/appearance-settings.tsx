@@ -72,7 +72,6 @@ export function AppearanceSettings() {
   });
 
   const currentTheme = form.watch('theme');
-  const currentAccent = form.watch('accentColor');
 
   React.useEffect(() => {
     if (currentTheme) {

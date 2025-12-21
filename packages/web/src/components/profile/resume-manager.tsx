@@ -207,6 +207,37 @@ export function ResumeManager({ profile }: ResumeManagerProps) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
+  const handleDownload = async (resume: Resume) => {
+    if (!resume.path) return;
+
+    try {
+      // Fetch the file as a blob to enable proper download
+      const response = await fetch(resume.path);
+      if (!response.ok) {
+        throw new Error('Failed to fetch resume file');
+      }
+      const blob = await response.blob();
+
+      // Create object URL for download
+      const objectUrl = URL.createObjectURL(blob);
+
+      // Create anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = resume.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up object URL to prevent memory leaks
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Failed to download resume:', error);
+      // Fallback to opening in new tab
+      window.open(resume.path, '_blank');
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -310,10 +341,7 @@ export function ResumeManager({ profile }: ResumeManagerProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        // TODO: Implement download
-                        window.open(resume.path, '_blank');
-                      }}
+                      onClick={() => handleDownload(resume)}
                       title="Download"
                     >
                       <Download className="h-4 w-4" />
