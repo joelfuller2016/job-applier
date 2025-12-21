@@ -210,31 +210,35 @@ export function ResumeManager({ profile }: ResumeManagerProps) {
   const handleDownload = async (resume: Resume) => {
     if (!resume.path) return;
 
+    let objectUrl: string | null = null;
     try {
       // Fetch the file as a blob to enable proper download
       const response = await fetch(resume.path);
       if (!response.ok) {
-        throw new Error('Failed to fetch resume file');
+        throw new Error(`Failed to download resume: ${response.status} ${response.statusText}`);
       }
       const blob = await response.blob();
 
       // Create object URL for download
-      const objectUrl = URL.createObjectURL(blob);
+      objectUrl = URL.createObjectURL(blob);
 
       // Create anchor element and trigger download
       const link = document.createElement('a');
       link.href = objectUrl;
       link.download = resume.name;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      // Clean up object URL to prevent memory leaks
-      URL.revokeObjectURL(objectUrl);
     } catch (error) {
       console.error('Failed to download resume:', error);
       // Fallback to opening in new tab
       window.open(resume.path, '_blank');
+    } finally {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     }
   };
 
