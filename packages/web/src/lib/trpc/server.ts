@@ -8,6 +8,7 @@ import { profileRepository, userRepository } from '@job-applier/database';
 import { jobRepository } from '@job-applier/database';
 import { applicationRepository } from '@job-applier/database';
 import { settingsRepository } from '@job-applier/database';
+import { sessionRepository } from '@job-applier/database';
 import { getConfigManager } from '@job-applier/config';
 import { JobHunterOrchestrator } from '@job-applier/ai-job-hunter';
 import { authOptions } from '@/lib/auth';
@@ -35,6 +36,7 @@ export async function createContext() {
     jobRepository,
     applicationRepository,
     settingsRepository,
+    sessionRepository,
 
     // Services
     configManager,

@@ -105,6 +105,8 @@ export type LoggingConfig = z.infer<typeof LoggingConfigSchema>;
  * Application preferences schema
  */
 export const ApplicationPreferencesSchema = z.object({
+  defaultKeywords: z.string().default(''),
+  defaultLocation: z.string().default(''),
   minMatchScore: z.number().min(0).max(100).default(70),
   autoApply: z.boolean().default(false),
   requireReview: z.boolean().default(true),
@@ -164,9 +166,15 @@ export const EnvSchema = z.object({
   MAX_DELAY_BETWEEN_ACTIONS: z.string().transform(Number).default('5000'),
 
   // Platform credentials (optional)
-  LINKEDIN_EMAIL: z.string().optional(),
+  LINKEDIN_EMAIL: z.preprocess(
+    value => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().email().optional()
+  ),
   LINKEDIN_PASSWORD: z.string().optional(),
-  INDEED_EMAIL: z.string().optional(),
+  INDEED_EMAIL: z.preprocess(
+    value => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().email().optional()
+  ),
   INDEED_PASSWORD: z.string().optional(),
 
   // Application settings

@@ -13,6 +13,10 @@ import {
  * Load environment variables from .env file
  */
 export function loadEnvFile(envPath?: string): void {
+  if (!envPath && process.env.NODE_ENV === 'test') {
+    return;
+  }
+
   const paths = envPath
     ? [envPath]
     : [
@@ -102,6 +106,8 @@ export function envToAppConfig(env: EnvConfig): AppConfig {
       timestamps: true,
     },
     preferences: {
+      defaultKeywords: '',
+      defaultLocation: '',
       minMatchScore: env.MIN_MATCH_SCORE,
       autoApply: env.AUTO_APPLY,
       requireReview: env.REQUIRE_REVIEW,

@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import figlet from 'figlet';
+import type { JobListing, JobApplication } from '@job-applier/core';
 import { createInitCommand } from './commands/init.js';
 import { createResumeCommand } from './commands/resume.js';
 import { createSearchCommand } from './commands/search.js';
@@ -90,7 +91,7 @@ program
     let jobs = jobRepo.getRecent(100);
 
     if (options.platform) {
-      jobs = jobs.filter((j: any) => j.platform === options.platform);
+      jobs = jobs.filter((j: JobListing) => j.platform === options.platform);
     }
 
     if (jobs.length === 0) {
@@ -136,7 +137,7 @@ program
     const appRepo = new ApplicationRepository();
     const jobRepo = new JobRepository();
 
-    let applications: any[];
+    let applications: JobApplication[];
     if (options.status) {
       applications = appRepo.findByStatus(options.status);
     } else {

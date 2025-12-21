@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { AutomationStatus, LogEntry, ScreenshotUpdate } from '@/lib/socket';
+import { AUTOMATION_SETTINGS } from '@job-applier/core';
 
 interface AutomationConfig {
   platforms: ('linkedin' | 'indeed')[];
@@ -56,9 +57,9 @@ interface AutomationState {
 const defaultConfig: AutomationConfig = {
   platforms: ['linkedin'],
   searchQuery: '',
-  maxApplicationsPerDay: 25,
-  maxApplicationsPerHour: 5,
-  delayBetweenApplications: { min: 30, max: 90 },
+  maxApplicationsPerDay: AUTOMATION_SETTINGS.DEFAULT_APPLICATIONS_PER_DAY,
+  maxApplicationsPerHour: AUTOMATION_SETTINGS.DEFAULT_APPLICATIONS_PER_HOUR,
+  delayBetweenApplications: { min: AUTOMATION_SETTINGS.MIN_DELAY_SECONDS, max: AUTOMATION_SETTINGS.MAX_DELAY_SECONDS },
   headless: false,
   autoRetry: true,
 };
@@ -80,7 +81,7 @@ export const useAutomationStore = create<AutomationState>()(
         isConnected: false,
         lastError: null,
         logs: [],
-        maxLogs: 500,
+        maxLogs: AUTOMATION_SETTINGS.MAX_LOGS,
         latestScreenshot: null,
         config: defaultConfig,
         sessionStats: {
