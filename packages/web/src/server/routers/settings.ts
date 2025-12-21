@@ -1,7 +1,7 @@
 /**
  * Settings Router
  * Handles application settings and configuration
- * 
+ *
  * SECURITY: Settings mutations require admin access.
  * Regular users can only read settings, not modify them.
  */
@@ -14,12 +14,38 @@ import { router, protectedProcedure, adminProcedure } from '../trpc';
  */
 export const settingsRouter = router({
   /**
+   * Get admin access status for the current user
+   * SECURITY: Requires authentication; does not disclose admin list
+   */
+  getAdminStatus: protectedProcedure
+    .query(async ({ ctx }) => {
+      const adminUserIds = (process.env.ADMIN_USER_IDS || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+
+      return {
+        isAdmin: adminUserIds.length > 0 && adminUserIds.includes(ctx.userId),
+        adminConfigured: adminUserIds.length > 0,
+      };
+    }),
+
+  /**
    * Get current application settings
    * SECURITY: Requires authentication (users can read their settings)
    */
   getSettings: protectedProcedure
     .query(async ({ ctx }) => {
       const config = ctx.config;
+      const linkedInConfigured = Boolean(
+        config.platforms.linkedin.email || config.platforms.linkedin.password
+      );
+      const indeedConfigured = Boolean(
+        config.platforms.indeed.email || config.platforms.indeed.password
+      );
+      const glassdoorConfigured = Boolean(
+        config.platforms.glassdoor.email || config.platforms.glassdoor.password
+      );
 
       return {
         claude: {
@@ -30,10 +56,6 @@ export const settingsRouter = router({
         exa: {
           enabled: !!config.exa.apiKey,
           maxResults: config.exa.maxResults,
-        },
-        database: {
-          path: config.database.path,
-          walMode: config.database.walMode,
         },
         browser: {
           headless: config.browser.headless,
@@ -47,14 +69,27 @@ export const settingsRouter = router({
           minDelayBetweenActions: config.rateLimit.minDelayBetweenActions,
           maxDelayBetweenActions: config.rateLimit.maxDelayBetweenActions,
         },
-        platforms: config.platforms,
+        platforms: {
+          linkedin: {
+            enabled: config.platforms.linkedin.enabled,
+            useEasyApply: config.platforms.linkedin.useEasyApply,
+            hasCredentials: linkedInConfigured,
+          },
+          indeed: {
+            enabled: config.platforms.indeed.enabled,
+            hasCredentials: indeedConfigured,
+          },
+          glassdoor: {
+            enabled: config.platforms.glassdoor.enabled,
+            hasCredentials: glassdoorConfigured,
+          },
+        },
         logging: {
           level: config.logging.level,
           file: config.logging.file,
           console: config.logging.console,
         },
         preferences: config.preferences,
-        dataDir: config.dataDir,
         environment: config.environment,
       };
     }),
@@ -62,7 +97,7 @@ export const settingsRouter = router({
   /**
    * Update application settings
    * SECURITY: Requires ADMIN access - modifies global configuration
-   * 
+   *
    * This endpoint allows modification of system-wide settings including:
    * - AI model configuration (affects all users)
    * - Rate limits (affects all users)
@@ -95,6 +130,8 @@ export const settingsRouter = router({
           console: z.boolean().optional(),
         }).optional(),
         preferences: z.object({
+          defaultKeywords: z.string().optional(),
+          defaultLocation: z.string().optional(),
           minMatchScore: z.number().optional(),
           autoApply: z.boolean().optional(),
           requireReview: z.boolean().optional(),
@@ -151,11 +188,44 @@ export const settingsRouter = router({
     }),
 
   /**
+   * Update API keys
+   * SECURITY: Requires ADMIN access
+   */
+  updateApiKeys: adminProcedure
+    .input(
+      z.object({
+        claudeApiKey: z.string().min(1),
+        exaApiKey: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updates: Record<string, unknown> = {};
+
+      if (input.claudeApiKey) {
+        updates.claude = { apiKey: input.claudeApiKey };
+      }
+
+      // Only update Exa key if provided and not empty
+      if (input.exaApiKey && input.exaApiKey.trim() !== '') {
+        updates.exa = { apiKey: input.exaApiKey };
+      }
+
+      if (Object.keys(updates).length > 0) {
+        ctx.configManager.update(updates);
+      }
+
+      return {
+        success: true,
+        message: 'API keys updated successfully',
+      };
+    }),
+
+  /**
    * Reset settings to defaults
    * SECURITY: Requires ADMIN access - affects global configuration
    */
   resetSettings: adminProcedure
-    .mutation(async ({ ctx }) => {
+    .mutation(async () => {
       // This would reset to default config
       // For now, just return success
       return {
@@ -166,9 +236,10 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
-   * SECURITY: Requires authentication (contains system paths)
+   * SECURITY: Requires ADMIN access - exposes internal filesystem structure
+   * Regular users should not see server-side paths as this could aid in attacks
    */
-  getDataPaths: protectedProcedure
+  getDataPaths: adminProcedure
     .query(async ({ ctx }) => {
       return {
         dataDir: ctx.configManager.getDataDir(),

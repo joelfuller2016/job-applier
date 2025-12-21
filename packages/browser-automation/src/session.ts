@@ -1,7 +1,7 @@
 import { Page, BrowserContext } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
-import { BrowserError } from '@job-applier/core';
+import { BrowserError, SESSION_SETTINGS } from '@job-applier/core';
 import { getConfigManager } from '@job-applier/config';
 import { getBrowserManager } from './browser.js';
 
@@ -107,12 +107,12 @@ export class SessionManager {
       return false;
     }
 
-    // Check if session is still valid (less than 24 hours old)
+    // Check if session is still valid (less than SESSION_MAX_AGE_HOURS old)
     const lastActivity = new Date(state.lastActivity);
     const now = new Date();
     const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
 
-    if (hoursSinceActivity > 24) {
+    if (hoursSinceActivity > SESSION_SETTINGS.MAX_AGE_HOURS) {
       console.log(`Session for ${platform} is too old (${hoursSinceActivity.toFixed(1)} hours)`);
       return false;
     }
@@ -176,7 +176,7 @@ export class SessionManager {
   /**
    * Clean up expired sessions
    */
-  cleanupExpiredSessions(maxAgeHours = 24): number {
+  cleanupExpiredSessions(maxAgeHours = SESSION_SETTINGS.MAX_AGE_HOURS): number {
     const sessions = this.listSessions();
     let cleaned = 0;
 
