@@ -22,6 +22,7 @@
     "@job-applier/core": "*",
     "@job-applier/database": "*",
     "@job-applier/orchestrator": "*",
+    "@job-applier/platforms": "^1.0.0",
     "@job-applier/resume-parser": "*",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
