@@ -14,12 +14,38 @@ import { router, protectedProcedure, adminProcedure } from '../trpc';
  */
 export const settingsRouter = router({
   /**
+   * Get admin access status for the current user
+   * SECURITY: Requires authentication; does not disclose admin list
+   */
+  getAdminStatus: protectedProcedure
+    .query(async ({ ctx }) => {
+      const adminUserIds = (process.env.ADMIN_USER_IDS || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+
+      return {
+        isAdmin: adminUserIds.length > 0 && adminUserIds.includes(ctx.userId),
+        adminConfigured: adminUserIds.length > 0,
+      };
+    }),
+
+  /**
    * Get current application settings
    * SECURITY: Requires authentication (users can read their settings)
    */
   getSettings: protectedProcedure
     .query(async ({ ctx }) => {
       const config = ctx.config;
+      const linkedInConfigured = Boolean(
+        config.platforms.linkedin.email || config.platforms.linkedin.password
+      );
+      const indeedConfigured = Boolean(
+        config.platforms.indeed.email || config.platforms.indeed.password
+      );
+      const glassdoorConfigured = Boolean(
+        config.platforms.glassdoor.email || config.platforms.glassdoor.password
+      );
 
       return {
         claude: {
@@ -30,10 +56,6 @@ export const settingsRouter = router({
         exa: {
           enabled: !!config.exa.apiKey,
           maxResults: config.exa.maxResults,
-        },
-        database: {
-          path: config.database.path,
-          walMode: config.database.walMode,
         },
         browser: {
           headless: config.browser.headless,
@@ -47,14 +69,27 @@ export const settingsRouter = router({
           minDelayBetweenActions: config.rateLimit.minDelayBetweenActions,
           maxDelayBetweenActions: config.rateLimit.maxDelayBetweenActions,
         },
-        platforms: config.platforms,
+        platforms: {
+          linkedin: {
+            enabled: config.platforms.linkedin.enabled,
+            useEasyApply: config.platforms.linkedin.useEasyApply,
+            hasCredentials: linkedInConfigured,
+          },
+          indeed: {
+            enabled: config.platforms.indeed.enabled,
+            hasCredentials: indeedConfigured,
+          },
+          glassdoor: {
+            enabled: config.platforms.glassdoor.enabled,
+            hasCredentials: glassdoorConfigured,
+          },
+        },
         logging: {
           level: config.logging.level,
           file: config.logging.file,
           console: config.logging.console,
         },
         preferences: config.preferences,
-        dataDir: config.dataDir,
         environment: config.environment,
       };
     }),
