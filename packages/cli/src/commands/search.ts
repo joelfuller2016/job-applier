@@ -4,6 +4,7 @@ import ora from 'ora';
 import Table from 'cli-table3';
 import { JobApplierEngine } from '@job-applier/orchestrator';
 import { ProfileRepository } from '@job-applier/database';
+import { SkillMatch } from '@job-applier/core';
 
 /**
  * Job search command
@@ -113,8 +114,8 @@ export function createSearchCommand(): Command {
           console.log(`   Match Score: ${chalk.green(match.overallScore + '%')}`);
           console.log(`   Skills: ${chalk.green(match.skillScore + '%')} | Experience: ${chalk.green(match.experienceScore + '%')}`);
 
-          const matchedSkills = match.skillMatches.filter(sm => sm.userHas).map(sm => sm.skill);
-          const missingSkills = match.skillMatches.filter(sm => !sm.userHas).map(sm => sm.skill);
+          const matchedSkills = match.skillMatches.filter((sm: SkillMatch) => sm.userHas).map((sm: SkillMatch) => sm.skill);
+          const missingSkills = match.skillMatches.filter((sm: SkillMatch) => !sm.userHas).map((sm: SkillMatch) => sm.skill);
 
           if (matchedSkills.length > 0) {
             console.log(`   ✅ Matched: ${chalk.cyan(matchedSkills.slice(0, 5).join(', '))}`);

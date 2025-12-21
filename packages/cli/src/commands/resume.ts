@@ -7,6 +7,7 @@ import path from 'path';
 import Table from 'cli-table3';
 import { JobApplierEngine } from '@job-applier/orchestrator';
 import { ProfileRepository } from '@job-applier/database';
+import { Skill } from '@job-applier/core';
 
 /**
  * Resume management commands
@@ -57,7 +58,7 @@ export function createResumeCommand(): Command {
         }
 
         console.log(chalk.bold('\nSkills:'));
-        const skillNames = profile.skills.slice(0, 10).map(s => s.name);
+        const skillNames = profile.skills.slice(0, 10).map((s: Skill) => s.name);
         console.log(`  ${skillNames.join(', ')}`);
 
         console.log(chalk.bold('\nEducation:'));
@@ -164,20 +165,20 @@ export function createResumeCommand(): Command {
 
       console.log(chalk.bold('\nSkills:'));
       const skillsByLevel = {
-        expert: profile.skills.filter(s => s.proficiency === 'expert'),
-        advanced: profile.skills.filter(s => s.proficiency === 'advanced'),
-        intermediate: profile.skills.filter(s => s.proficiency === 'intermediate'),
-        beginner: profile.skills.filter(s => s.proficiency === 'beginner'),
+        expert: profile.skills.filter((s: Skill) => s.proficiency === 'expert'),
+        advanced: profile.skills.filter((s: Skill) => s.proficiency === 'advanced'),
+        intermediate: profile.skills.filter((s: Skill) => s.proficiency === 'intermediate'),
+        beginner: profile.skills.filter((s: Skill) => s.proficiency === 'beginner'),
       };
 
       if (skillsByLevel.expert.length > 0) {
-        console.log(`  Expert: ${skillsByLevel.expert.map(s => s.name).join(', ')}`);
+        console.log(`  Expert: ${skillsByLevel.expert.map((s: Skill) => s.name).join(', ')}`);
       }
       if (skillsByLevel.advanced.length > 0) {
-        console.log(`  Advanced: ${skillsByLevel.advanced.map(s => s.name).join(', ')}`);
+        console.log(`  Advanced: ${skillsByLevel.advanced.map((s: Skill) => s.name).join(', ')}`);
       }
       if (skillsByLevel.intermediate.length > 0) {
-        console.log(`  Intermediate: ${skillsByLevel.intermediate.map(s => s.name).join(', ')}`);
+        console.log(`  Intermediate: ${skillsByLevel.intermediate.map((s: Skill) => s.name).join(', ')}`);
       }
 
       console.log('');

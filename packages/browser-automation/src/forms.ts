@@ -1,5 +1,5 @@
 import { Page } from 'playwright';
-import { BrowserError, UserProfile } from '@job-applier/core';
+import { BrowserError, UserProfile, WorkExperience } from '@job-applier/core';
 import {
   fillField,
   selectOption,
@@ -179,7 +179,7 @@ function calculateYearsExperience(profile: UserProfile): string {
   if (profile.experience.length === 0) return '0';
 
   const earliest = profile.experience
-    .map(exp => exp.startDate)
+    .map((exp: WorkExperience) => exp.startDate)
     .sort()[0];
 
   if (!earliest) return '0';

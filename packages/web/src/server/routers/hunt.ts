@@ -96,15 +96,13 @@ export const huntRouter = router({
           },
           {
             // Event callbacks with database persistence
-            onProgress: (progress: number, processedItems: number) => {
+            onProgress: (message: string) => {
               // Check for cancellation
               if (ctx.sessionRepository.isCancelRequested(session.id)) {
                 throw new Error('Hunt cancelled by user');
               }
-              ctx.sessionRepository.update(session.id, {
-                progress,
-                processedItems,
-              });
+              // Log progress message (could be stored in session logs if needed)
+              console.log(`[Hunt ${session.id}] ${message}`);
             },
             onJobDiscovered: () => {
               const currentSession = ctx.sessionRepository.findById(session.id);
