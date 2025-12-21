@@ -49,7 +49,7 @@ const defaultValues: GeneralSettingsValues = {
   applicationDelay: 5,
 };
 
-const STORAGE_KEY = 'job-applier.generalSettings';
+const STORAGE_KEY = 'job-applier.v1.settings.general';
 
 export function GeneralSettings() {
   const { toast } = useToast();
@@ -87,7 +87,18 @@ export function GeneralSettings() {
       // TODO: Implement tRPC mutation to save settings
       // await trpc.settings.updateGeneral.mutate(data);
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (storageError) {
+        // Handle localStorage errors (quota exceeded, private browsing, etc.)
+        console.error('Failed to save settings to localStorage:', storageError);
+        toast({
+          title: 'Warning',
+          description: 'Settings could not be saved locally. They will reset on page reload.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       console.log('General settings:', data);
 
@@ -104,6 +115,19 @@ export function GeneralSettings() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResetToDefaults = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear localStorage:', error);
+    }
+    form.reset(defaultValues);
+    toast({
+      title: 'Settings reset',
+      description: 'Your settings have been reset to defaults.',
+    });
   };
 
   return (
@@ -283,9 +307,19 @@ export function GeneralSettings() {
               />
             </div>
 
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </Button>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleResetToDefaults}
+                disabled={isLoading}
+              >
+                Reset to Defaults
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
