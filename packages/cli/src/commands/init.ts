@@ -6,6 +6,11 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
+ * Maximum allowed delay between actions in seconds (5 minutes)
+ */
+const MAX_DELAY_SECONDS = 300;
+
+/**
  * Validates delay values to ensure they are positive and within reasonable bounds
  */
 function validateDelay(input: number, fieldName: string): true | string {
@@ -15,8 +20,8 @@ function validateDelay(input: number, fieldName: string): true | string {
   if (input <= 0) {
     return `${fieldName} must be greater than 0`;
   }
-  if (input > 300) {
-    return `${fieldName} must not exceed 300 seconds`;
+  if (input > MAX_DELAY_SECONDS) {
+    return `${fieldName} must not exceed ${MAX_DELAY_SECONDS} seconds`;
   }
   return true;
 }
@@ -108,10 +113,6 @@ export function createInitCommand(): Command {
             const delayValidation = validateDelay(input, 'Maximum delay');
             if (delayValidation !== true) {
               return delayValidation;
-            }
-            const minDelayValidation = validateDelay(minDelay, 'Minimum delay');
-            if (minDelayValidation !== true) {
-              return minDelayValidation;
             }
             return input >= minDelay || 'Maximum delay must be at least minimum delay';
           },
