@@ -11,6 +11,7 @@ Recommended order:
    - Status: merged (Codex)
 3) PR #74 - Harden dashboard profile access checks
    - Aligns with ownership rules from #46/#85.
+   - Status: merged (Codex)
 4) PR #75 - Persist user general settings via tRPC and settings repository
    - Backend storage needed by later settings UIs.
 5) PR #76 - Connect General Settings UI to config via tRPC and add default preferences
