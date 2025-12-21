@@ -178,4 +178,16 @@ export const settingsRouter = router({
         uploadsPath: ctx.configManager.ensureDataSubdir('uploads'),
       };
     }),
+
+  /**
+   * Test Exa API key
+   * SECURITY: Requires ADMIN access
+   */
+  testExaKey: adminProcedure
+    .input(z.object({ apiKey: z.string() }))
+    .mutation(async ({ input }) => {
+      const { verifyExaKey } = await import('@job-applier/job-discovery');
+      const isValid = await verifyExaKey(input.apiKey);
+      return { isValid };
+    }),
 });

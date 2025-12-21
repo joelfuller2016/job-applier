@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { trpc } from '@/lib/trpc/react';
 
 const apiKeysSchema = z.object({
   claudeApiKey: z.string().min(1, 'Claude API key is required'),
@@ -98,6 +99,8 @@ export function ApiKeysSettings() {
       });
     }
   };
+
+  const testExaKeyMutation = trpc.settings.testExaKey.useMutation();
 
   const testExaKey = async () => {
     const key = form.getValues('exaApiKey');

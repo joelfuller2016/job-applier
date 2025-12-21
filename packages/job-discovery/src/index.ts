@@ -5,6 +5,7 @@ export {
   searchJobs,
   getContent,
   findSimilar,
+  verifyExaKey,
   type ExaSearchResult,
   type ExaSearchOptions,
 } from './client.js';

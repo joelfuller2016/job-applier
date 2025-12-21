@@ -76,6 +76,21 @@ export async function searchExa(
 }
 
 /**
+ * Verify Exa API key
+ */
+export async function verifyExaKey(apiKey: string): Promise<boolean> {
+  try {
+    const client = new Exa(apiKey);
+    // Perform a lightweight search to test the key
+    await client.search("test", { numResults: 1 });
+    return true;
+  } catch (error) {
+    console.error('Exa key verification failed:', error);
+    return false;
+  }
+}
+
+/**
  * Search for job listings using Exa
  */
 export async function searchJobs(
