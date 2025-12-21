@@ -1,6 +1,9 @@
 /**
  * Profile Router
  * Handles user profile operations with multi-profile support
+ *
+ * SECURITY: All mutation endpoints verify profile ownership before modification.
+ * Users can only modify profiles they own (profile.userId === ctx.userId).
  */
 
 import { z } from 'zod';
@@ -17,6 +20,49 @@ const ExtendedProfileInputSchema = UserProfileSchema.omit({ id: true, createdAt:
   coverLetterTemplate: z.string().optional(),
   isDefault: z.boolean().optional(),
 });
+
+/**
+ * Verify that the current user owns the profile
+ * SECURITY: Prevents IDOR attacks by ensuring users can only modify their own profiles
+ *
+ * @throws TRPCError NOT_FOUND if profile doesn't exist
+ * @throws TRPCError FORBIDDEN if user doesn't own the profile or profile has no owner
+ */
+function verifyProfileOwnership(
+  ctx: {
+    profileRepository: {
+      findById: (id: string) => { userId?: string | null } | null;
+    };
+    userId: string;
+  },
+  profileId: string
+) {
+  const profile = ctx.profileRepository.findById(profileId);
+
+  if (!profile) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Profile not found',
+    });
+  }
+
+  // Orphaned profiles (no userId) cannot be modified
+  if (!profile.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'This profile has no owner and cannot be modified.',
+    });
+  }
+
+  if (profile.userId !== ctx.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to modify this profile',
+    });
+  }
+
+  return profile;
+}
 
 /**
  * Profile router with CRUD operations
@@ -188,7 +234,7 @@ export const profileRouter = router({
 
   /**
    * Update profile contact information
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   updateContactInfo: protectedProcedure
     .input(
@@ -198,12 +244,14 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.id);
       return ctx.profileRepository.update(input.id, { contact: input.contact });
     }),
 
   /**
    * Update profile job preferences
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   updatePreferences: protectedProcedure
     .input(
@@ -213,12 +261,14 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.id);
       return ctx.profileRepository.update(input.id, { preferences: input.preferences });
     }),
 
   /**
    * Add a skill to profile
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   addSkill: protectedProcedure
     .input(
@@ -228,22 +278,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const skills = [...(profile.skills || []), input.skill];
+      const skills = [...(profile?.skills || []), input.skill];
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
 
   /**
    * Remove a skill from profile
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   removeSkill: protectedProcedure
     .input(
@@ -253,22 +298,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const skills = (profile.skills || []).filter(s => s.name !== input.skillName);
+      const skills = (profile?.skills || []).filter(s => s.name !== input.skillName);
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
 
   /**
    * Add work experience
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   addExperience: protectedProcedure
     .input(
@@ -278,22 +318,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const experience = [...(profile.experience || []), input.experience];
+      const experience = [...(profile?.experience || []), input.experience];
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
 
   /**
    * Update work experience
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   updateExperience: protectedProcedure
     .input(
@@ -304,16 +339,11 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const experience = (profile.experience || []).map(exp =>
+      const experience = (profile?.experience || []).map(exp =>
         exp.id === input.experienceId ? { ...exp, ...input.experience } : exp
       );
       return ctx.profileRepository.update(input.profileId, { experience });
@@ -321,7 +351,7 @@ export const profileRouter = router({
 
   /**
    * Remove work experience
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   removeExperience: protectedProcedure
     .input(
@@ -331,22 +361,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const experience = (profile.experience || []).filter(e => e.id !== input.experienceId);
+      const experience = (profile?.experience || []).filter(e => e.id !== input.experienceId);
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
 
   /**
    * Add education
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   addEducation: protectedProcedure
     .input(
@@ -356,22 +381,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const education = [...(profile.education || []), input.education];
+      const education = [...(profile?.education || []), input.education];
       return ctx.profileRepository.update(input.profileId, { education });
     }),
 
   /**
    * Update education
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   updateEducation: protectedProcedure
     .input(
@@ -382,16 +402,11 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const education = (profile.education || []).map(edu =>
+      const education = (profile?.education || []).map(edu =>
         edu.id === input.educationId ? { ...edu, ...input.education } : edu
       );
       return ctx.profileRepository.update(input.profileId, { education });
@@ -399,7 +414,7 @@ export const profileRouter = router({
 
   /**
    * Remove education
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   removeEducation: protectedProcedure
     .input(
@@ -409,22 +424,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const education = (profile.education || []).filter(e => e.id !== input.educationId);
+      const education = (profile?.education || []).filter(e => e.id !== input.educationId);
       return ctx.profileRepository.update(input.profileId, { education });
     }),
 
   /**
    * Add project
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   addProject: protectedProcedure
     .input(
@@ -434,22 +444,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const projects = [...(profile.projects || []), input.project];
+      const projects = [...(profile?.projects || []), input.project];
       return ctx.profileRepository.update(input.profileId, { projects });
     }),
 
   /**
    * Add certification
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   addCertification: protectedProcedure
     .input(
@@ -459,22 +464,17 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       const profile = ctx.profileRepository.findById(input.profileId);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile not found`,
-        });
-      }
-
-      const certifications = [...(profile.certifications || []), input.certification];
+      const certifications = [...(profile?.certifications || []), input.certification];
       return ctx.profileRepository.update(input.profileId, { certifications });
     }),
 
   /**
    * Update resume content
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   updateResumeContent: protectedProcedure
     .input(
@@ -485,6 +485,9 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       return ctx.profileRepository.update(input.profileId, {
         resumeContent: input.resumeContent,
         resumePath: input.resumePath,
@@ -494,7 +497,7 @@ export const profileRouter = router({
 
   /**
    * Update cover letter template
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   updateCoverLetterTemplate: protectedProcedure
     .input(
@@ -504,6 +507,9 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify ownership before modification
+      verifyProfileOwnership(ctx, input.profileId);
+
       return ctx.profileRepository.update(input.profileId, {
         coverLetterTemplate: input.coverLetterTemplate,
       });
@@ -511,7 +517,7 @@ export const profileRouter = router({
 
   /**
    * Import resume and create/update profile
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification
    */
   importResume: protectedProcedure
     .input(
@@ -522,13 +528,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.profileId) {
-        const profile = ctx.profileRepository.findById(input.profileId);
-        if (!profile) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: `Profile with ID ${input.profileId} not found`,
-          });
-        }
+        // SECURITY: Verify ownership before modification
+        verifyProfileOwnership(ctx, input.profileId);
 
         return ctx.profileRepository.update(input.profileId, {
           resumePath: input.resumePath,
@@ -544,22 +545,19 @@ export const profileRouter = router({
 
   /**
    * Duplicate a profile
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication AND ownership verification of source profile
    */
   duplicateProfile: protectedProcedure
     .input(z.object({ id: z.string(), newName: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: Verify user owns the source profile before duplicating
+      // This prevents users from copying other users' private profile data
+      verifyProfileOwnership(ctx, input.id);
+
       const profile = ctx.profileRepository.findById(input.id);
 
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      // Create a copy of the profile
-      const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile;
+      // Create a copy of the profile (profile is guaranteed to exist after ownership check)
+      const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile!;
 
       // Update name if provided
       if (input.newName) {
@@ -570,7 +568,7 @@ export const profileRouter = router({
         profileData.firstName = `${profileData.firstName} (Copy)`;
       }
 
-      const newUserId = ctx.userId === ANONYMOUS_USER_ID ? undefined : ctx.userId;
-      return ctx.profileRepository.create(profileData, newUserId);
+      // Always create the copy under the current user's ownership
+      return ctx.profileRepository.create(profileData, ctx.userId);
     }),
 });
