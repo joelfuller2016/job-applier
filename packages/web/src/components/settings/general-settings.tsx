@@ -49,6 +49,8 @@ const defaultValues: GeneralSettingsValues = {
   applicationDelay: 5,
 };
 
+const STORAGE_KEY = 'app-general-settings-v1';
+
 export function GeneralSettings() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
