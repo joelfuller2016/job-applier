@@ -5,8 +5,10 @@ Goal: merge in a sequence that minimizes breaking changes and aligns dependencie
 Recommended order:
 1) PR #46 - Security Audit: Comprehensive Rate Limiting, IDOR Prevention & Authentication Hardening
    - Action: fix breaking env/admin config before merge.
+   - Status: in progress (another AI)
 2) PR #85 - Security Hardening Review
    - Action: follow-up to #46; merge or close immediately after #46.
+   - Status: completed (Codex)
 3) PR #74 - Harden dashboard profile access checks
    - Aligns with ownership rules from #46/#85.
 4) PR #75 - Persist user general settings via tRPC and settings repository
