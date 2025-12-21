@@ -2359,16 +2359,18 @@ CREATE TABLE module_audit_log (
 | GOOGLE_CLIENT_SECRET | Production | Google OAuth client secret |
 | ANTHROPIC_API_KEY | Yes | Claude API key |
 | EXA_API_KEY | Yes | Exa API key |
-| CREDENTIALS_ENCRYPTION_KEY | Yes | Credential encryption key (32 bytes) |
-| CREDENTIALS_ENCRYPTION_SALT | Yes | Credential encryption salt (16 bytes) |
+| CREDENTIALS_ENCRYPTION_KEY | Yes | Credential encryption key (32 bytes) |     
+| CREDENTIALS_ENCRYPTION_SALT | Yes | Credential encryption salt (16 bytes) |   
 | DATABASE_PATH | No | SQLite database path |
 | MAX_APPLICATIONS_PER_DAY | No | Daily application limit |
-| RATE_LIMIT_DELAY_MS | No | Delay between actions |
-| HEADLESS_MODE | No | Run browser in headless mode |
+| MAX_APPLICATIONS_PER_HOUR | No | Hourly application limit |
+| MIN_DELAY_BETWEEN_ACTIONS | No | Minimum delay between actions (ms) |
+| MAX_DELAY_BETWEEN_ACTIONS | No | Maximum delay between actions (ms) |
+| BROWSER_HEADLESS | No | Run browser in headless mode |
 | DRY_RUN_MODE | No | Enable dry run mode |
-| BROWSER_TIMEOUT_MS | No | Browser operation timeout (default 30000) |
+| BROWSER_TIMEOUT | No | Browser operation timeout (default 30000 ms) |
 | SCREENSHOT_ON_ERROR | No | Capture screenshots on automation errors |
-| REQUIRE_CONFIRMATION | No | Require user confirmation for applications |
+| REQUIRE_CONFIRMATION | No | Require user confirmation for applications |      
 | BLOCKED_COMPANIES | No | Comma-separated list of blocked companies |
 | LOG_LEVEL | No | Logging level (debug, info, warn, error) |
 | NEXT_PUBLIC_APP_MODE | No | Client-side app mode awareness |

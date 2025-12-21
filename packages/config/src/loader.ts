@@ -32,11 +32,84 @@ export function loadEnvFile(envPath?: string): void {
   }
 }
 
+type NormalizedEnvResult = {
+  env: NodeJS.ProcessEnv;
+  warnings: string[];
+};
+
+function normalizeLegacyEnv(rawEnv: NodeJS.ProcessEnv): NormalizedEnvResult {
+  const env: NodeJS.ProcessEnv = { ...rawEnv };
+  const warnings = new Set<string>();
+
+  const setIfMissing = (key: string, value: string | undefined): void => {
+    if (value !== undefined && value !== '' && env[key] === undefined) {
+      env[key] = value;
+    }
+  };
+
+  const warn = (legacy: string, canonical: string): void => {
+    if (rawEnv[legacy] !== undefined && rawEnv[legacy] !== '') {
+      warnings.add(`${legacy} is deprecated; use ${canonical}`);
+    }
+  };
+
+  setIfMissing('ANTHROPIC_API_KEY', rawEnv.CLAUDE_API_KEY);
+  warn('CLAUDE_API_KEY', 'ANTHROPIC_API_KEY');
+
+  setIfMissing('BROWSER_HEADLESS', rawEnv.HEADLESS);
+  warn('HEADLESS', 'BROWSER_HEADLESS');
+
+  setIfMissing('BROWSER_HEADLESS', rawEnv.HEADLESS_MODE);
+  warn('HEADLESS_MODE', 'BROWSER_HEADLESS');
+
+  setIfMissing('BROWSER_TIMEOUT', rawEnv.BROWSER_TIMEOUT_MS);
+  warn('BROWSER_TIMEOUT_MS', 'BROWSER_TIMEOUT');
+
+  if (
+    env.MIN_DELAY_BETWEEN_ACTIONS === undefined ||
+    env.MAX_DELAY_BETWEEN_ACTIONS === undefined
+  ) {
+    if (rawEnv.RATE_LIMIT_DELAY_MS !== undefined) {
+      setIfMissing('MIN_DELAY_BETWEEN_ACTIONS', rawEnv.RATE_LIMIT_DELAY_MS);
+      setIfMissing('MAX_DELAY_BETWEEN_ACTIONS', rawEnv.RATE_LIMIT_DELAY_MS);
+      warn(
+        'RATE_LIMIT_DELAY_MS',
+        'MIN_DELAY_BETWEEN_ACTIONS/MAX_DELAY_BETWEEN_ACTIONS'
+      );
+    } else if (rawEnv.DELAY_BETWEEN_ACTIONS !== undefined) {
+      const seconds = Number(rawEnv.DELAY_BETWEEN_ACTIONS);
+      if (Number.isFinite(seconds)) {
+        const ms = String(Math.round(seconds * 1000));
+        setIfMissing('MIN_DELAY_BETWEEN_ACTIONS', ms);
+        setIfMissing('MAX_DELAY_BETWEEN_ACTIONS', ms);
+        warnings.add(
+          'DELAY_BETWEEN_ACTIONS is deprecated (seconds); use MIN_DELAY_BETWEEN_ACTIONS/MAX_DELAY_BETWEEN_ACTIONS in ms'
+        );
+      } else {
+        warn(
+          'DELAY_BETWEEN_ACTIONS',
+          'MIN_DELAY_BETWEEN_ACTIONS/MAX_DELAY_BETWEEN_ACTIONS'
+        );
+      }
+    }
+  }
+
+  return { env, warnings: Array.from(warnings) };
+}
+
 /**
  * Parse and validate environment variables
  */
 export function parseEnv(): EnvConfig {
-  const result = EnvSchema.safeParse(process.env);
+  const { env, warnings } = normalizeLegacyEnv(process.env);
+
+  if (warnings.length > 0 && process.env.NODE_ENV !== 'test') {
+    for (const warning of warnings) {
+      console.warn(`[Config] ${warning}`);
+    }
+  }
+
+  const result = EnvSchema.safeParse(env);
 
   if (!result.success) {
     const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`);
