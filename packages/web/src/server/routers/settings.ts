@@ -188,11 +188,44 @@ export const settingsRouter = router({
     }),
 
   /**
+   * Update API keys
+   * SECURITY: Requires ADMIN access
+   */
+  updateApiKeys: adminProcedure
+    .input(
+      z.object({
+        claudeApiKey: z.string().min(1),
+        exaApiKey: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updates: Record<string, unknown> = {};
+
+      if (input.claudeApiKey) {
+        updates.claude = { apiKey: input.claudeApiKey };
+      }
+
+      // Only update Exa key if provided and not empty
+      if (input.exaApiKey && input.exaApiKey.trim() !== '') {
+        updates.exa = { apiKey: input.exaApiKey };
+      }
+
+      if (Object.keys(updates).length > 0) {
+        ctx.configManager.update(updates);
+      }
+
+      return {
+        success: true,
+        message: 'API keys updated successfully',
+      };
+    }),
+
+  /**
    * Reset settings to defaults
    * SECURITY: Requires ADMIN access - affects global configuration
    */
   resetSettings: adminProcedure
-    .mutation(async ({ ctx }) => {
+    .mutation(async () => {
       // This would reset to default config
       // For now, just return success
       return {
@@ -203,9 +236,9 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
-   * SECURITY: Requires authentication (contains system paths)
+   * SECURITY: Requires ADMIN privileges (sensitive paths)
    */
-  getDataPaths: protectedProcedure
+  getDataPaths: adminProcedure
     .query(async ({ ctx }) => {
       return {
         dataDir: ctx.configManager.getDataDir(),

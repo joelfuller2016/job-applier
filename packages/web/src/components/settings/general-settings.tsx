@@ -75,7 +75,9 @@ export function GeneralSettings() {
       maxApplicationsPerDay: settingsQuery.data.rateLimit?.maxApplicationsPerDay ?? 10,
       applicationDelay: Math.max(
         1,
-        Math.round((settingsQuery.data.rateLimit?.minDelayBetweenActions ?? DEFAULT_MIN_DELAY_MS) / 1000)
+        Math.round(
+          (settingsQuery.data.rateLimit?.minDelayBetweenActions ?? DEFAULT_MIN_DELAY_MS) / 1000
+        )
       ),
     });
   }, [settingsQuery.data]);

@@ -1,14 +1,14 @@
 /**
  * Automation Router
  * Handles automation control and status endpoints
- * 
+ *
  * SECURITY FIX: Now uses database-backed sessions instead of in-memory Map
  * See: https://github.com/joelfuller2016/job-applier/issues/37
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, publicProcedure, protectedProcedure, rateLimitedMutationProcedure } from '../trpc';
 
 // Types
 const AutomationStatusSchema = z.object({
@@ -96,9 +96,9 @@ export const automationRouter = router({
 
   /**
    * Update automation configuration
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + rate limiting
    */
-  updateConfig: protectedProcedure
+  updateConfig: rateLimitedMutationProcedure
     .input(AutomationConfigSchema.partial())
     .mutation(async ({ input }) => {
       // In a real implementation, this would save to config/database
@@ -107,9 +107,9 @@ export const automationRouter = router({
 
   /**
    * Start automation
-   * SECURITY: Requires authentication
+   * SECURITY: Requires authentication + rate limiting
    */
-  start: protectedProcedure
+  start: rateLimitedMutationProcedure
     .input(
       z.object({
         platforms: z.array(z.enum(['linkedin', 'indeed'])),
@@ -254,7 +254,7 @@ export const automationRouter = router({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const session = ctx.sessionRepository.findById(input.id);
-      
+
       // Verify ownership
       if (!session || session.userId !== ctx.userId) {
         return null;
