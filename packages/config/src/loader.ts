@@ -13,6 +13,10 @@ import {
  * Load environment variables from .env file
  */
 export function loadEnvFile(envPath?: string): void {
+  if (!envPath && process.env.NODE_ENV === 'test') {
+    return;
+  }
+
   const paths = envPath
     ? [envPath]
     : [

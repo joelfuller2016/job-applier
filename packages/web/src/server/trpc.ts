@@ -7,6 +7,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import type { Context } from '../lib/trpc/server';
+import { RATE_LIMITER_SETTINGS } from '@job-applier/core';
 import { ANONYMOUS_USER_ID, LEGACY_DEFAULT_USER_ID } from '../lib/constants';
 
 /**
@@ -21,11 +22,12 @@ class RateLimiter {
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
-    private readonly windowMs: number = 60000,
-    private readonly maxRequests: number = 60
+    private readonly windowMs: number = RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+    private readonly maxRequests: number = RATE_LIMITER_SETTINGS.DEFAULT_MAX_REQUESTS
   ) {
     // Cleanup stale entries every 5 minutes to prevent memory leaks
-    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+<<<<<<< HEAD
+    this.cleanupInterval = setInterval(() => this.cleanup(), RATE_LIMITER_SETTINGS.CLEANUP_INTERVAL);
     // Ensure cleanup interval does not prevent process exit
     if (this.cleanupInterval.unref) {
       this.cleanupInterval.unref();
@@ -79,9 +81,18 @@ class RateLimiter {
 }
 
 // Rate limiters for different endpoint categories
-const generalRateLimiter = new RateLimiter(60000, 100);  // 100 req/min for general queries
-const mutationRateLimiter = new RateLimiter(60000, 30);  // 30 mutations/min
-const aiRateLimiter = new RateLimiter(60000, 10);        // 10 AI calls/min
+const generalRateLimiter = new RateLimiter(
+  RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+  RATE_LIMITER_SETTINGS.GENERAL_LIMIT
+);  // 100 req/min for general queries
+const mutationRateLimiter = new RateLimiter(
+  RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+  RATE_LIMITER_SETTINGS.MUTATION_LIMIT
+);  // 30 mutations/min
+const aiRateLimiter = new RateLimiter(
+  RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+  RATE_LIMITER_SETTINGS.AI_LIMIT
+);  // 10 AI calls/min (expensive operations)
 
 /**
  * Determine if we're in production environment

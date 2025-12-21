@@ -5,6 +5,9 @@ import {
   JobMatch,
   generateId,
   toISOString,
+  CLAUDE_TOKEN_LIMITS,
+  TEXT_EXTRACTION_LIMITS,
+  EXPERIENCE_CONSTANTS,
 } from '@job-applier/core';
 import { getConfigManager } from '@job-applier/config';
 import { MatchRepository } from '@job-applier/database';
@@ -251,7 +254,7 @@ export class JobMatcher {
 
     const startDates = profile.experience.map(e => new Date(e.startDate));
     const earliest = Math.min(...startDates.map(d => d.getTime()));
-    const years = (Date.now() - earliest) / (365.25 * 24 * 60 * 60 * 1000);
+    const years = (Date.now() - earliest) / (EXPERIENCE_CONSTANTS.DAYS_PER_YEAR * 24 * 60 * 60 * 1000);
 
     return Math.floor(years);
   }
@@ -386,7 +389,7 @@ export class JobMatcher {
 Job Title: ${job.title}
 Company: ${job.company.name}
 Location: ${job.location}
-Description: ${job.description.substring(0, 1000)}...
+Description: ${job.description.substring(0, TEXT_EXTRACTION_LIMITS.JOB_DESCRIPTION_PREVIEW)}...
 
 Candidate Profile:
 - Current Role: ${profile.experience[0]?.title || 'Not specified'}
@@ -407,7 +410,7 @@ Only respond with the JSON, no other text.`;
 
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 800,
+        max_tokens: CLAUDE_TOKEN_LIMITS.JOB_MATCHING,
         messages: [{ role: 'user', content: prompt }],
       });
 
