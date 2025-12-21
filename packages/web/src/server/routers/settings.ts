@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { indeedAdapter } from '@job-applier/platforms';
 
 const DEFAULT_GENERAL_SETTINGS = {
   defaultKeywords: '',
@@ -64,6 +65,46 @@ export const settingsRouter = router({
         isAdmin: adminUserIds.length > 0 && adminUserIds.includes(ctx.userId),
         adminConfigured: adminUserIds.length > 0,
       };
+    }),
+
+  /**
+   * Test Indeed connection with provided credentials
+   * SECURITY: Requires admin access - tests platform authentication
+   */
+  testIndeedConnection: adminProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string().min(1, 'Password is required'),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const success = await indeedAdapter.login({
+          platform: 'indeed',
+          email: input.email,
+          password: input.password,
+        });
+
+        // Clean up browser session after test
+        await indeedAdapter.close();
+
+        return {
+          success,
+          message: success ? 'Successfully connected to Indeed' : 'Failed to connect to Indeed',
+        };
+      } catch (error) {
+        // Clean up browser session on error
+        await indeedAdapter.close().catch(() => { /* ignore cleanup errors */ });
+
+        // Sanitize error message - don't include credentials
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error during connection test';
+        // Log without sensitive data
+        console.error('Indeed connection test failed:', errorMessage);
+
+        // Let the error propagate to trigger tRPC's onError callback
+        throw error;
+      }
     }),
 
   /**

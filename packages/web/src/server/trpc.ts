@@ -26,7 +26,6 @@ class RateLimiter {
     private readonly maxRequests: number = RATE_LIMITER_SETTINGS.DEFAULT_MAX_REQUESTS
   ) {
     // Cleanup stale entries every 5 minutes to prevent memory leaks
-<<<<<<< HEAD
     this.cleanupInterval = setInterval(() => this.cleanup(), RATE_LIMITER_SETTINGS.CLEANUP_INTERVAL);
     // Ensure cleanup interval does not prevent process exit
     if (this.cleanupInterval.unref) {

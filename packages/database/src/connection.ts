@@ -154,10 +154,17 @@ export function checkDatabaseHealth(): { healthy: boolean; error?: string } {
 
 /**
  * Helper to run a single statement
+ * Returns the number of rows modified by the statement
  */
-export function run(sql: string, params: unknown[] = []): void {
+export function run(sql: string, params: unknown[] = []): { changes: number } {
   const database = getDatabase();
   database.run(sql, params as (string | number | null | Uint8Array)[]);
+  // Use SQLite's built-in changes() function to get rows modified
+  const result = database.exec('SELECT changes() AS changes');
+  const changes = result.length > 0 && result[0].values.length > 0
+    ? Number(result[0].values[0][0])
+    : 0;
+  return { changes };
 }
 
 /**

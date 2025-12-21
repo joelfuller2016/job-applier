@@ -49,7 +49,8 @@ const defaultValues: GeneralSettingsValues = {
   applicationDelay: 5,
 };
 
-const STORAGE_KEY = 'job-applier.generalSettings';
+const STORAGE_KEY = 'app-general-settings-v1';
+const LEGACY_STORAGE_KEY = 'job-applier.generalSettings';
 const DEFAULT_MIN_DELAY_MS = 5000;
 const DELAY_MULTIPLIER = 2.5;
 
@@ -84,7 +85,8 @@ export function GeneralSettings() {
   }, [settingsQuery.data]);
 
   React.useEffect(() => {
-    const storedSettings = localStorage.getItem(STORAGE_KEY);
+    const storedSettings =
+      localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!storedSettings) {
       return;
     }
@@ -121,6 +123,7 @@ export function GeneralSettings() {
   const handleResetToDefaults = () => {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch (storageError) {
       console.warn('Failed to clear settings from localStorage', storageError);
     }
@@ -170,6 +173,7 @@ export function GeneralSettings() {
 
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
       } catch (storageError) {
         console.error('Failed to save settings to localStorage:', storageError);
         toast({
