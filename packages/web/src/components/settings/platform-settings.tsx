@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { trpc } from '@/lib/trpc/react';
 
 const platformSettingsSchema = z.object({
   linkedinEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
@@ -153,11 +154,12 @@ export function PlatformSettings() {
     }
   };
 
+  const updatePlatformCredentials = trpc.settings.updatePlatformCredentials.useMutation();
+
   const onSubmit = async (data: PlatformSettingsValues) => {
     setIsLoading(true);
     try {
-      // TODO: Implement tRPC mutation to save platform credentials
-      // await trpc.settings.updatePlatformCredentials.mutate(data);
+      await updatePlatformCredentials.mutateAsync(data);
 
       console.log('Platform credentials saved (passwords hidden)');
 
