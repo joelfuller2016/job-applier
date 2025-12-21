@@ -82,7 +82,7 @@ export function GeneralSettings() {
         )
       ),
     });
-  }, [settingsQuery.data, form]);
+  }, [settingsQuery.data]);
 
   React.useEffect(() => {
     const storedSettings =
