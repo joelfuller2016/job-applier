@@ -70,6 +70,17 @@ function normalizeLegacyEnv(rawEnv: NodeJS.ProcessEnv): NormalizedEnvResult {
   setIfMissing('ANTHROPIC_API_KEY', rawEnv.CLAUDE_API_KEY);
   warn('CLAUDE_API_KEY', 'ANTHROPIC_API_KEY');
 
+  // When both legacy flags are set, HEADLESS takes precedence over HEADLESS_MODE.
+  if (
+    rawEnv.HEADLESS !== undefined &&
+    rawEnv.HEADLESS_MODE !== undefined &&
+    rawEnv.HEADLESS !== rawEnv.HEADLESS_MODE
+  ) {
+    warnings.add(
+      `HEADLESS and HEADLESS_MODE are both set and differ; using HEADLESS=${rawEnv.HEADLESS}`
+    );
+  }
+
   setIfMissing('BROWSER_HEADLESS', rawEnv.HEADLESS);
   warn('HEADLESS', 'BROWSER_HEADLESS');
 
