@@ -165,6 +165,51 @@ export const settingsRouter = router({
     }),
 
   /**
+   * Update platform credentials
+   * SECURITY: Requires ADMIN access - modifies sensitive credentials
+   */
+  updatePlatformCredentials: adminProcedure
+    .input(
+      z.object({
+        linkedinEmail: z.string().optional().or(z.literal('')),
+        linkedinPassword: z.string().optional(),
+        indeedEmail: z.string().optional().or(z.literal('')),
+        indeedPassword: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const currentConfig = ctx.config;
+
+      const updatedConfig = {
+        ...currentConfig,
+        platforms: {
+          ...currentConfig.platforms,
+          linkedin: {
+            ...currentConfig.platforms.linkedin,
+            // If email is empty string or provided, update it
+            ...(input.linkedinEmail !== undefined && { email: input.linkedinEmail || undefined }),
+            // Only update password if provided (not undefined/null)
+            // Empty string might be valid if clearing password?
+            // The UI schema allows optional string.
+            ...(input.linkedinPassword !== undefined && { password: input.linkedinPassword || undefined }),
+          },
+          indeed: {
+            ...currentConfig.platforms.indeed,
+            ...(input.indeedEmail !== undefined && { email: input.indeedEmail || undefined }),
+            ...(input.indeedPassword !== undefined && { password: input.indeedPassword || undefined }),
+          }
+        }
+      };
+
+      ctx.configManager.update(updatedConfig);
+
+      return {
+        success: true,
+        message: 'Platform credentials updated successfully',
+      };
+    }),
+
+  /**
    * Get data directory paths
    * SECURITY: Requires authentication (contains system paths)
    */
