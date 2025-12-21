@@ -12,7 +12,7 @@ import { router, protectedProcedure } from '../trpc';
 /**
  * Verify that the authenticated user owns the profile
  *
- * @throws TRPCError FORBIDDEN if user doesn't own the profile
+ * @throws TRPCError FORBIDDEN if user doesn't own the profile or profile is orphaned
  */
 function verifyProfileOwnership(
   profile: { userId?: string | null } | null,
@@ -22,8 +22,17 @@ function verifyProfileOwnership(
     return; // Will be handled by caller
   }
 
-  // Profiles with userId must belong to the authenticated user
-  if (profile.userId && profile.userId !== userId) {
+  // Orphaned profiles (no userId) should not be accessible via dashboard
+  // This prevents data leakage from legacy/orphaned profiles
+  if (!profile.userId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'This profile cannot be accessed',
+    });
+  }
+
+  // Profiles must belong to the authenticated user
+  if (profile.userId !== userId) {
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'You do not have permission to access this profile',
