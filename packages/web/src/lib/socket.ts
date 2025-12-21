@@ -4,6 +4,7 @@
  */
 
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_SETTINGS } from '@job-applier/core';
 
 // Event types for type-safe communication
 export interface AutomationStatus {
@@ -86,9 +87,9 @@ export function getSocket(): Socket<ServerToClientEvents, ClientToServerEvents> 
     socket = io(socketUrl, {
       autoConnect: false,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionAttempts: SOCKET_SETTINGS.RECONNECTION_ATTEMPTS,
+      reconnectionDelay: SOCKET_SETTINGS.RECONNECTION_DELAY,
+      reconnectionDelayMax: SOCKET_SETTINGS.RECONNECTION_DELAY_MAX,
       transports: ['websocket', 'polling'],
     });
 

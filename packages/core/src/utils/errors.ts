@@ -1,3 +1,5 @@
+import { RETRY_SETTINGS, HTTP_STATUS } from '../constants.js';
+
 /**
  * Base error class for JobAutoApply
  */
@@ -251,7 +253,7 @@ export function isRetryableError(error: unknown): boolean {
   if (error instanceof ApiError) {
     // Retry on server errors and rate limits
     return error.statusCode !== undefined &&
-      (error.statusCode >= 500 || error.statusCode === 429);
+      (error.statusCode >= HTTP_STATUS.INTERNAL_SERVER_ERROR || error.statusCode === HTTP_STATUS.TOO_MANY_REQUESTS);
   }
 
   if (error instanceof BrowserError) {
@@ -267,17 +269,14 @@ export function isRetryableError(error: unknown): boolean {
  * Get retry delay for an error
  */
 export function getRetryDelay(error: unknown, attempt: number): number {
-  const baseDelay = 1000; // 1 second
-  const maxDelay = 60000; // 1 minute
-
   if (error instanceof RateLimitError && error.retryAfter) {
     return error.retryAfter * 1000;
   }
 
   // Exponential backoff with jitter
   const exponentialDelay = Math.min(
-    baseDelay * Math.pow(2, attempt),
-    maxDelay
+    RETRY_SETTINGS.BASE_DELAY * Math.pow(2, attempt),
+    RETRY_SETTINGS.MAX_DELAY
   );
 
   const jitter = Math.random() * 0.3 * exponentialDelay;

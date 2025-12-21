@@ -38,7 +38,7 @@ export function useAuth() {
     }
     signIn('demo-credentials', {
       email: 'demo@example.com',
-      password: 'demo123',
+      password: process.env.NEXT_PUBLIC_DEMO_PASSWORD || '',
       callbackUrl: '/',
     });
   }, [demoModeEnabled]);

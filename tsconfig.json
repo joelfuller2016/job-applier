@@ -9,7 +9,10 @@
       "@job-applier/job-discovery": ["packages/job-discovery/src"],
       "@job-applier/browser-automation": ["packages/browser-automation/src"],
       "@job-applier/platforms": ["packages/platforms/src"],
-      "@job-applier/config": ["packages/config/src"]
+      "@job-applier/config": ["packages/config/src"],
+      "@job-applier/ai-job-hunter": ["packages/ai-job-hunter/src"],
+      "@job-applier/orchestrator": ["packages/orchestrator/src"],
+      "@job-applier/application-tracker": ["packages/application-tracker/src"]
     }
   },
   "references": [
@@ -20,7 +23,10 @@
     { "path": "packages/job-discovery" },
     { "path": "packages/browser-automation" },
     { "path": "packages/platforms" },
-    { "path": "apps/cli" }
+    { "path": "packages/ai-job-hunter" },
+    { "path": "packages/orchestrator" },
+    { "path": "packages/application-tracker" },
+    { "path": "packages/cli" }
   ],
   "files": [],
   "include": []

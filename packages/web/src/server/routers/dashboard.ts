@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc';
 
 /**
@@ -24,7 +25,21 @@ export const dashboardRouter = router({
       // Get default profile if not specified
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
+
+      if (input.profileId && !profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.profileId} not found.`,
+        });
+      }
+
+      if (profile && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this profile.',
+        });
+      }
 
       if (!profile) {
         return {
@@ -102,7 +117,21 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const profile = input.profileId
         ? ctx.profileRepository.findById(input.profileId)
-        : ctx.profileRepository.getDefault();
+        : ctx.profileRepository.getDefaultForUser(ctx.userId);
+
+      if (input.profileId && !profile) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: `Profile with ID ${input.profileId} not found.`,
+        });
+      }
+
+      if (profile && profile.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this profile.',
+        });
+      }
 
       if (!profile) {
         return [];

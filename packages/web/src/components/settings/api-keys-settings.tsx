@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { trpc } from '@/lib/trpc/react';
 
 const apiKeysSchema = z.object({
   claudeApiKey: z.string().min(1, 'Claude API key is required'),
@@ -139,11 +140,12 @@ export function ApiKeysSettings() {
     }
   };
 
+  const updateApiKeys = trpc.settings.updateApiKeys.useMutation();
+
   const onSubmit = async (data: ApiKeysValues) => {
     setIsLoading(true);
     try {
-      // TODO: Implement tRPC mutation to save API keys
-      // await trpc.settings.updateApiKeys.mutate(data);
+      await updateApiKeys.mutateAsync(data);
 
       console.log('API keys:', { ...data, claudeApiKey: '***', exaApiKey: '***' });
 

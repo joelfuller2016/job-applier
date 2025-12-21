@@ -7,13 +7,14 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import type { Context } from '../lib/trpc/server';
-import { ANONYMOUS_USER_ID } from '../lib/constants';
+import { RATE_LIMITER_SETTINGS } from '@job-applier/core';
+import { ANONYMOUS_USER_ID, LEGACY_DEFAULT_USER_ID } from '../lib/constants';
 
 /**
  * Rate Limiter Implementation
- * In-memory sliding window rate limiter with automatic cleanup
+ * Sliding window rate limiter with automatic cleanup
  *
- * NOTE: This is suitable for single-instance deployments.
+ * NOTE: This is an in-memory implementation suitable for single-instance deployments.
  * For horizontal scaling, replace with Redis-based implementation.
  */
 class RateLimiter {
@@ -21,12 +22,13 @@ class RateLimiter {
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(
-    private readonly windowMs: number = 60000,
-    private readonly maxRequests: number = 60
+    private readonly windowMs: number = RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+    private readonly maxRequests: number = RATE_LIMITER_SETTINGS.DEFAULT_MAX_REQUESTS
   ) {
     // Cleanup stale entries every 5 minutes to prevent memory leaks
-    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
-    // Ensure cleanup interval doesn't prevent process exit
+<<<<<<< HEAD
+    this.cleanupInterval = setInterval(() => this.cleanup(), RATE_LIMITER_SETTINGS.CLEANUP_INTERVAL);
+    // Ensure cleanup interval does not prevent process exit
     if (this.cleanupInterval.unref) {
       this.cleanupInterval.unref();
     }
@@ -69,25 +71,68 @@ class RateLimiter {
       }
     }
   }
+
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+  }
 }
 
 // Rate limiters for different endpoint categories
-const generalRateLimiter = new RateLimiter(60000, 100);  // 100 req/min for general queries
-const mutationRateLimiter = new RateLimiter(60000, 30);  // 30 mutations/min
-const aiRateLimiter = new RateLimiter(60000, 10);        // 10 AI calls/min (expensive operations)
+const generalRateLimiter = new RateLimiter(
+  RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+  RATE_LIMITER_SETTINGS.GENERAL_LIMIT
+);  // 100 req/min for general queries
+const mutationRateLimiter = new RateLimiter(
+  RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+  RATE_LIMITER_SETTINGS.MUTATION_LIMIT
+);  // 30 mutations/min
+const aiRateLimiter = new RateLimiter(
+  RATE_LIMITER_SETTINGS.WINDOW_DURATION,
+  RATE_LIMITER_SETTINGS.AI_LIMIT
+);  // 10 AI calls/min (expensive operations)
+
+/**
+ * Determine if we're in production environment
+ */
+const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Initialize tRPC with context
+ *
+ * SECURITY: Error formatter sanitizes responses to prevent information leakage
+ * - In production: Only return safe error codes and messages, no stack traces
+ * - In development: Include full error details for debugging
  */
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    // In production, sanitize error responses to prevent stack trace exposure
+    if (isProduction) {
+      return {
+        ...shape,
+        data: {
+          ...shape.data,
+          // Only include Zod validation errors (safe to expose)
+          zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
+          // Never include stack traces in production
+          stack: undefined,
+        },
+        // Sanitize the message for internal errors
+        message: shape.code === 'INTERNAL_SERVER_ERROR'
+          ? 'An unexpected error occurred. Please try again later.'
+          : shape.message,
+      };
+    }
+
+    // In development, include full error details for debugging
     return {
       ...shape,
       data: {
         ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
   },
@@ -105,7 +150,7 @@ export const publicProcedure = t.procedure;
  */
 export const authMiddleware = t.middleware(async ({ ctx, next }) => {
   // Check if user is authenticated (not using anonymous/unauthenticated user)
-  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID) {
+  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID || ctx.userId === LEGACY_DEFAULT_USER_ID) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'Authentication required. Please sign in to perform this action.',
@@ -115,7 +160,7 @@ export const authMiddleware = t.middleware(async ({ ctx, next }) => {
   return next({
     ctx: {
       ...ctx,
-      // Narrow the type to ensure userId is defined and not 'default'
+      // Narrow the type to ensure userId is defined and not anonymous/default
       userId: ctx.userId as string,
     },
   });
@@ -125,7 +170,11 @@ export const authMiddleware = t.middleware(async ({ ctx, next }) => {
  * Get rate limit key from context
  */
 function getRateLimitKey(ctx: Context): string {
-  if (ctx.userId && ctx.userId !== ANONYMOUS_USER_ID) {
+  if (
+    ctx.userId &&
+    ctx.userId !== ANONYMOUS_USER_ID &&
+    ctx.userId !== LEGACY_DEFAULT_USER_ID
+  ) {
     return `user:${ctx.userId}`;
   }
   return `anon:${ctx.userId || 'unknown'}`;
@@ -181,46 +230,31 @@ export const aiRateLimitedProcedure = t.procedure
   .use(aiRateLimitMiddleware);
 
 /**
- * Get list of admin user IDs from environment
- * ADMIN_USER_IDS should be a comma-separated list of user IDs
+ * Admin user IDs - configurable via environment variable
+ * Format: comma-separated list of user IDs
+ * Example: ADMIN_USER_IDS=user123,user456
+ * If not set, any authenticated user is treated as admin (single-user mode)
  */
-function getAdminUserIds(): string[] {
-  const adminIds = process.env.ADMIN_USER_IDS || '';
-  return adminIds
-    .split(',')
-    .map((id) => id.trim())
-    .filter((id) => id.length > 0);
-}
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
 
 /**
- * Middleware for admin authentication
- * Ensures user is authenticated AND is an administrator
- * 
- * SECURITY: Admin users are configured via ADMIN_USER_IDS environment variable.
- * If no admins are configured, NO ONE can access admin endpoints (fail-secure).
+ * Admin middleware - checks for admin role
  */
 export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
-  // First, ensure user is authenticated
-  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID) {
+  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID || ctx.userId === LEGACY_DEFAULT_USER_ID) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'Authentication required. Please sign in to perform this action.',
     });
   }
 
-  // Check if user is in the admin list
-  const adminUserIds = getAdminUserIds();
-  
-  // SECURITY: If no admins configured, fail secure (no one gets admin access)
-  if (adminUserIds.length === 0) {
-    console.warn('[SECURITY] No ADMIN_USER_IDS configured. Admin endpoints are disabled.');
-    throw new TRPCError({
-      code: 'FORBIDDEN',
-      message: 'Administrator access required. No administrators configured.',
-    });
-  }
+  // If no admin IDs are configured, treat all authenticated users as admins (single-user mode)
+  const isAdmin = ADMIN_USER_IDS.length === 0 ? true : ADMIN_USER_IDS.includes(ctx.userId);
 
-  if (!adminUserIds.includes(ctx.userId)) {
+  if (!isAdmin) {
     throw new TRPCError({
       code: 'FORBIDDEN',
       message: 'Administrator access required.',
