@@ -105,6 +105,8 @@ export type LoggingConfig = z.infer<typeof LoggingConfigSchema>;
  * Application preferences schema
  */
 export const ApplicationPreferencesSchema = z.object({
+  defaultKeywords: z.string().default(''),
+  defaultLocation: z.string().default(''),
   minMatchScore: z.number().min(0).max(100).default(70),
   autoApply: z.boolean().default(false),
   requireReview: z.boolean().default(true),

@@ -122,11 +122,10 @@ export const applicationsRouter = router({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       // Verify ownership before returning
-      const { application } = await verifyApplicationOwnership(ctx, input.id);
+      await verifyApplicationOwnership(ctx, input.id);
 
       // Re-fetch full application data
-      const fullApplication = ctx.applicationRepository.findById(input.id);
-      return fullApplication;
+      return ctx.applicationRepository.findById(input.id);
     }),
 
   /**
