@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { trpc } from '@/lib/trpc/react';
 
 const platformSettingsSchema = z.object({
   linkedinEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
@@ -108,7 +109,30 @@ export function PlatformSettings() {
     }
   };
 
-  const testIndeedConnection = async () => {
+  const testIndeedConnection = trpc.settings.testIndeedConnection.useMutation({
+    onSuccess: (result) => {
+      setPlatformStatus((prev) => ({
+        ...prev,
+        indeed: result.success ? 'connected' : 'error'
+      }));
+
+      toast({
+        title: result.success ? 'Connected' : 'Connection failed',
+        description: result.message,
+        variant: result.success ? 'default' : 'destructive',
+      });
+    },
+    onError: (error) => {
+      setPlatformStatus((prev) => ({ ...prev, indeed: 'error' }));
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to connect to Indeed. Please check your credentials.',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const handleTestIndeedConnection = async () => {
     const email = form.getValues('indeedEmail');
     const password = form.getValues('indeedPassword');
 
@@ -122,35 +146,7 @@ export function PlatformSettings() {
     }
 
     setPlatformStatus((prev) => ({ ...prev, indeed: 'connecting' }));
-
-    try {
-      // TODO: Implement tRPC mutation to test Indeed connection
-      // const result = await trpc.settings.testIndeedConnection.mutate({ email, password });
-
-      // Simulate connection test
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const isValid = email.includes('@'); // Basic validation
-
-      setPlatformStatus((prev) => ({
-        ...prev,
-        indeed: isValid ? 'connected' : 'error'
-      }));
-
-      toast({
-        title: isValid ? 'Connected' : 'Connection failed',
-        description: isValid
-          ? 'Successfully connected to Indeed.'
-          : 'Unable to authenticate with Indeed.',
-        variant: isValid ? 'default' : 'destructive',
-      });
-    } catch (error) {
-      setPlatformStatus((prev) => ({ ...prev, indeed: 'error' }));
-      toast({
-        title: 'Error',
-        description: 'Failed to connect to Indeed. Please check your credentials.',
-        variant: 'destructive',
-      });
-    }
+    testIndeedConnection.mutate({ email, password });
   };
 
   const onSubmit = async (data: PlatformSettingsValues) => {
@@ -353,7 +349,7 @@ export function PlatformSettings() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={testIndeedConnection}
+                onClick={handleTestIndeedConnection}
                 disabled={platformStatus.indeed === 'connecting'}
                 className="w-full"
               >

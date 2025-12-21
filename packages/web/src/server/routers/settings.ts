@@ -7,12 +7,45 @@
  */
 
 import { z } from 'zod';
+import { indeedAdapter } from '@job-applier/platforms';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 
 /**
  * Settings router for app configuration
  */
 export const settingsRouter = router({
+  /**
+   * Test Indeed connection
+   * SECURITY: Requires ADMIN access - performs sensitive platform login
+   */
+  testIndeedConnection: adminProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const success = await indeedAdapter.login({
+          platform: 'indeed',
+          email: input.email,
+          password: input.password,
+        });
+
+        return {
+          success,
+          message: success ? 'Successfully connected to Indeed' : 'Failed to connect to Indeed',
+        };
+      } catch (error) {
+        console.error('Indeed connection test failed:', error);
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unknown error during connection test',
+        };
+      }
+    }),
+
   /**
    * Get current application settings
    * SECURITY: Requires authentication (users can read their settings)
