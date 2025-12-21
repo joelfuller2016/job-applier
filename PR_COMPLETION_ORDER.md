@@ -19,6 +19,7 @@ Recommended order:
    - Builds on #75.
 6) PR #83 - Add localStorage persistence for general settings
    - Optional fallback once #75/#76 are in.
+   - Status: merged (Codex)
 7) PR #84 - Add localStorage error handling and reset functionality to general settings
    - Enhances #83; merge after #83 if keeping local storage.
 8) PR #78 - Persist web settings to localStorage
