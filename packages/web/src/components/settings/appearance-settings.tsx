@@ -58,6 +58,8 @@ const accentColors = [
   { value: 'red', label: 'Red', color: 'bg-red-500' },
 ] as const;
 
+const appearanceStorageKey = 'job-applier-appearance-settings';
+
 export function AppearanceSettings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
@@ -80,39 +82,54 @@ export function AppearanceSettings() {
     }
   }, [currentTheme, setTheme]);
 
+  const applyPreferences = React.useCallback(
+    (data: AppearanceSettingsValues) => {
+      setTheme(data.theme);
+
+      if (typeof document !== 'undefined') {
+        document.documentElement.setAttribute('data-accent', data.accentColor);
+        document.documentElement.classList.toggle('compact', data.compactMode);
+        document.documentElement.classList.toggle('reduce-motion', data.reducedMotion);
+      }
+    },
+    [setTheme]
+  );
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const saved = window.localStorage.getItem(appearanceStorageKey);
+    if (!saved) {
+      return;
+    }
+
+    let savedData: unknown;
+    try {
+      savedData = JSON.parse(saved);
+    } catch (error) {
+      console.warn('Failed to parse saved appearance settings.', error);
+      return;
+    }
+
+    const parsed = appearanceSettingsSchema.safeParse(savedData);
+    if (!parsed.success) {
+      return;
+    }
+
+    form.reset(parsed.data);
+    applyPreferences(parsed.data);
+  }, [applyPreferences, form]);
+
   const onSubmit = async (data: AppearanceSettingsValues) => {
     setIsLoading(true);
     try {
-      // TODO: Implement tRPC mutation to save appearance settings
-      // await trpc.settings.updateAppearance.mutate(data);
-
-      console.log('Appearance settings:', data);
-
-      // Apply theme
-      setTheme(data.theme);
-
-      // Apply accent color (would need CSS variable updates)
-      if (typeof document !== 'undefined') {
-        document.documentElement.setAttribute('data-accent', data.accentColor);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(appearanceStorageKey, JSON.stringify(data));
       }
 
-      // Apply compact mode
-      if (typeof document !== 'undefined') {
-        if (data.compactMode) {
-          document.documentElement.classList.add('compact');
-        } else {
-          document.documentElement.classList.remove('compact');
-        }
-      }
-
-      // Apply reduced motion
-      if (typeof document !== 'undefined') {
-        if (data.reducedMotion) {
-          document.documentElement.classList.add('reduce-motion');
-        } else {
-          document.documentElement.classList.remove('reduce-motion');
-        }
-      }
+      applyPreferences(data);
 
       toast({
         title: 'Settings saved',
