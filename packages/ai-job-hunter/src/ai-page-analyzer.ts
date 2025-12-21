@@ -182,7 +182,7 @@ Respond in JSON:
       resumePath: userProfile.resumePath as string || '',
     };
 
-    if (field.profileMapping && directMappings[field.profileMapping]) {
+    if (typeof field.profileMapping === 'string' && directMappings[field.profileMapping]) {
       return directMappings[field.profileMapping];
     }
 

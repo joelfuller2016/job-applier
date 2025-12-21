@@ -120,7 +120,7 @@ const t = initTRPC.context<Context>().create({
           stack: undefined,
         },
         // Sanitize the message for internal errors
-        message: shape.code === 'INTERNAL_SERVER_ERROR'
+        message: error.code === 'INTERNAL_SERVER_ERROR'
           ? 'An unexpected error occurred. Please try again later.'
           : shape.message,
       };

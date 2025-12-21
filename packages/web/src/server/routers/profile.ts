@@ -9,7 +9,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
-import type { UserProfile } from '@job-applier/core';
 import {
   UserProfileSchema,
   JobPreferencesSchema,
@@ -20,6 +19,7 @@ import {
   CertificationSchema,
   ProjectSchema,
 } from '@job-applier/core';
+import type { ExtendedProfile } from '@job-applier/database';
 import { ANONYMOUS_USER_ID } from '../../lib/constants';
 
 /**
@@ -41,7 +41,7 @@ const ExtendedProfileInputSchema = UserProfileSchema.omit({ id: true, createdAt:
 function verifyProfileOwnership(
   ctx: {
     profileRepository: {
-      findById: (id: string) => UserProfile | null;
+      findById: (id: string) => ExtendedProfile | null;
     };
     userId: string;
   },
