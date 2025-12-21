@@ -1,7 +1,7 @@
 /**
  * Settings Router
  * Handles application settings and configuration
- * 
+ *
  * SECURITY: Settings mutations require admin access.
  * Regular users can only read settings, not modify them.
  */
@@ -97,7 +97,7 @@ export const settingsRouter = router({
   /**
    * Update application settings
    * SECURITY: Requires ADMIN access - modifies global configuration
-   * 
+   *
    * This endpoint allows modification of system-wide settings including:
    * - AI model configuration (affects all users)
    * - Rate limits (affects all users)
@@ -236,7 +236,8 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
-   * SECURITY: Requires ADMIN privileges (sensitive paths)
+   * SECURITY: Requires ADMIN access - exposes internal filesystem structure
+   * Regular users should not see server-side paths as this could aid in attacks
    */
   getDataPaths: adminProcedure
     .query(async ({ ctx }) => {
