@@ -10,7 +10,15 @@ import {
 } from './schema.js';
 
 /**
- * Load environment variables from .env file
+ * Load environment variables from a .env file into process.env.
+ *
+ * If `envPath` is provided, that file will be loaded. If omitted, the function
+ * checks for `.env.local` then `.env` in the current working directory and
+ * loads the first one found. If `envPath` is not provided and `NODE_ENV` is
+ * `'test'`, the function returns without loading any file.
+ *
+ * @param envPath - Optional path to a .env file to load; when omitted, use the
+ * default lookup order described above
  */
 export function loadEnvFile(envPath?: string): void {
   if (!envPath && process.env.NODE_ENV === 'test') {
@@ -37,6 +45,12 @@ type NormalizedEnvResult = {
   warnings: string[];
 };
 
+/**
+ * Normalize legacy environment variable names to their canonical equivalents and collect deprecation warnings.
+ *
+ * @param rawEnv - The source environment object (typically `process.env`) that may contain legacy variable names.
+ * @returns An object with `env` containing the normalized environment variables and `warnings` as an array of deprecation messages.
+ */
 function normalizeLegacyEnv(rawEnv: NodeJS.ProcessEnv): NormalizedEnvResult {
   const env: NodeJS.ProcessEnv = { ...rawEnv };
   const warnings = new Set<string>();
@@ -98,7 +112,12 @@ function normalizeLegacyEnv(rawEnv: NodeJS.ProcessEnv): NormalizedEnvResult {
 }
 
 /**
- * Parse and validate environment variables
+ * Parse environment variables, normalize legacy names, and validate them against the environment schema.
+ *
+ * May log deprecation warnings for legacy environment variables to the console unless NODE_ENV is 'test'.
+ *
+ * @returns The validated environment configuration as an `EnvConfig` object
+ * @throws ConfigError when the environment fails schema validation; the error message lists validation failures
  */
 export function parseEnv(): EnvConfig {
   const { env, warnings } = normalizeLegacyEnv(process.env);
