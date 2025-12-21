@@ -9,7 +9,17 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from '../trpc';
-import { UserProfileSchema, JobPreferencesSchema, ContactInfoSchema, SkillSchema, WorkExperienceSchema, EducationSchema, CertificationSchema, ProjectSchema } from '@job-applier/core';
+import type { UserProfile } from '@job-applier/core';
+import {
+  UserProfileSchema,
+  JobPreferencesSchema,
+  ContactInfoSchema,
+  SkillSchema,
+  WorkExperienceSchema,
+  EducationSchema,
+  CertificationSchema,
+  ProjectSchema,
+} from '@job-applier/core';
 import { ANONYMOUS_USER_ID } from '../../lib/constants';
 
 /**
@@ -31,7 +41,7 @@ const ExtendedProfileInputSchema = UserProfileSchema.omit({ id: true, createdAt:
 function verifyProfileOwnership(
   ctx: {
     profileRepository: {
-      findById: (id: string) => { userId?: string | null } | null;
+      findById: (id: string) => UserProfile | null;
     };
     userId: string;
   },
@@ -97,8 +107,7 @@ export const profileRouter = router({
 
       // Verify ownership - allow read access to orphaned profiles only for anonymous users
       if (ctx.userId !== ANONYMOUS_USER_ID) {
-        // Authenticated users can only access their own profiles
-        if (profile.userId && profile.userId !== ctx.userId) {
+        if (!profile.userId || profile.userId !== ctx.userId) {
           throw new TRPCError({
             code: 'FORBIDDEN',
             message: 'You do not have access to this profile',
@@ -115,8 +124,9 @@ export const profileRouter = router({
   listProfiles: publicProcedure
     .query(async ({ ctx }) => {
       if (ctx.userId === ANONYMOUS_USER_ID) {
-        // Anonymous users can only see public/default profiles
-        return ctx.profileRepository.findAll();
+        // Anonymous users can only see the default profile
+        const defaultProfile = ctx.profileRepository.getDefault();
+        return defaultProfile ? [defaultProfile] : [];
       }
       return ctx.profileRepository.findByUserId(ctx.userId);
     }),
@@ -279,10 +289,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const skills = [...(profile?.skills || []), input.skill];
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const skills = [...(profile.skills || []), input.skill];
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
 
@@ -299,10 +307,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const skills = (profile?.skills || []).filter(s => s.name !== input.skillName);
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const skills = (profile.skills || []).filter(s => s.name !== input.skillName);
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
 
@@ -319,10 +325,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const experience = [...(profile?.experience || []), input.experience];
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const experience = [...(profile.experience || []), input.experience];
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
 
@@ -340,10 +344,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const experience = (profile?.experience || []).map(exp =>
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const experience = (profile.experience || []).map(exp =>
         exp.id === input.experienceId ? { ...exp, ...input.experience } : exp
       );
       return ctx.profileRepository.update(input.profileId, { experience });
@@ -362,10 +364,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const experience = (profile?.experience || []).filter(e => e.id !== input.experienceId);
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const experience = (profile.experience || []).filter(e => e.id !== input.experienceId);
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
 
@@ -382,10 +382,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const education = [...(profile?.education || []), input.education];
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const education = [...(profile.education || []), input.education];
       return ctx.profileRepository.update(input.profileId, { education });
     }),
 
@@ -403,10 +401,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const education = (profile?.education || []).map(edu =>
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const education = (profile.education || []).map(edu =>
         edu.id === input.educationId ? { ...edu, ...input.education } : edu
       );
       return ctx.profileRepository.update(input.profileId, { education });
@@ -425,10 +421,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const education = (profile?.education || []).filter(e => e.id !== input.educationId);
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const education = (profile.education || []).filter(e => e.id !== input.educationId);
       return ctx.profileRepository.update(input.profileId, { education });
     }),
 
@@ -445,10 +439,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const projects = [...(profile?.projects || []), input.project];
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const projects = [...(profile.projects || []), input.project];
       return ctx.profileRepository.update(input.profileId, { projects });
     }),
 
@@ -465,10 +457,8 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify ownership before modification
-      verifyProfileOwnership(ctx, input.profileId);
-
-      const profile = ctx.profileRepository.findById(input.profileId);
-      const certifications = [...(profile?.certifications || []), input.certification];
+      const profile = verifyProfileOwnership(ctx, input.profileId);
+      const certifications = [...(profile.certifications || []), input.certification];
       return ctx.profileRepository.update(input.profileId, { certifications });
     }),
 
@@ -552,12 +542,10 @@ export const profileRouter = router({
     .mutation(async ({ ctx, input }) => {
       // SECURITY: Verify user owns the source profile before duplicating
       // This prevents users from copying other users' private profile data
-      verifyProfileOwnership(ctx, input.id);
-
-      const profile = ctx.profileRepository.findById(input.id);
+      const profile = verifyProfileOwnership(ctx, input.id);
 
       // Create a copy of the profile (profile is guaranteed to exist after ownership check)
-      const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile!;
+      const { id, userId, createdAt, updatedAt, isDefault, ...profileData } = profile;
 
       // Update name if provided
       if (input.newName) {
