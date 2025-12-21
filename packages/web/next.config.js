@@ -34,11 +34,15 @@ const nextConfig = {
     return config;
   },
   /**
-   * SECURITY: OWASP recommended security headers
-   * These headers help protect against common web vulnerabilities
+   * Security Headers
+   * OWASP recommended headers to protect against common attacks
    */
   async headers() {
     const securityHeaders = [
+      {
+        key: 'X-DNS-Prefetch-Control',
+        value: 'on',
+      },
       {
         // Prevent clickjacking attacks
         key: 'X-Frame-Options',
@@ -48,6 +52,11 @@ const nextConfig = {
         // Prevent MIME type sniffing
         key: 'X-Content-Type-Options',
         value: 'nosniff',
+      },
+      {
+        // Enable XSS filter in browsers
+        key: 'X-XSS-Protection',
+        value: '1; mode=block',
       },
       {
         // Control referrer information sent with requests
@@ -64,13 +73,12 @@ const nextConfig = {
     if (process.env.NODE_ENV === 'production') {
       securityHeaders.push({
         key: 'Strict-Transport-Security',
-        value: 'max-age=31536000; includeSubDomains',
+        value: 'max-age=63072000; includeSubDomains',
       });
     }
 
     return [
       {
-        // Apply security headers to all routes
         source: '/:path*',
         headers: securityHeaders,
       },

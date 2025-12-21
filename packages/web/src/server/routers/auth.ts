@@ -1,15 +1,15 @@
 /**
  * Auth Router
  * Handles user authentication and account operations
- * 
- * SECURITY FIX: updateUser and deleteAccount now use protectedProcedure
- * instead of publicProcedure with manual checks.
- * See: https://github.com/joelfuller2016/job-applier/issues/16
+ *
+ * SECURITY: All mutations are rate-limited to prevent abuse
+ * - syncUser: Rate limited to prevent account creation spam
+ * - updateUser/deleteAccount: Protected + rate limited
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, publicProcedure, rateLimitedPublicProcedure, rateLimitedMutationProcedure } from '../trpc';
 
 /**
  * Auth router for user operations
@@ -31,10 +31,9 @@ export const authRouter = router({
   /**
    * Get or create user from session
    * This is called after OAuth sign-in to ensure user exists in our database
-   * NOTE: Must be publicProcedure because userId may still be 'default'
-   * immediately after OAuth before user record is created
+   * SECURITY: Rate limited to prevent account creation spam (30/min)
    */
-  syncUser: publicProcedure
+  syncUser: rateLimitedPublicProcedure
     .mutation(async ({ ctx }) => {
       if (!ctx.session?.user?.email) {
         throw new TRPCError({
@@ -69,15 +68,15 @@ export const authRouter = router({
 
   /**
    * Update user profile
-   * SECURITY: Now uses protectedProcedure - middleware handles authentication
+   * SECURITY: Requires authentication + rate limited (30 mutations/min)
    */
-  updateUser: protectedProcedure
+  updateUser: rateLimitedMutationProcedure
     .input(z.object({
       name: z.string().optional(),
       image: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // ctx.userId is guaranteed to be valid by protectedProcedure middleware
+      // ctx.userId is guaranteed by rateLimitedMutationProcedure (uses authMiddleware)
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {
@@ -92,11 +91,11 @@ export const authRouter = router({
 
   /**
    * Delete user account
-   * SECURITY: Now uses protectedProcedure - middleware handles authentication
+   * SECURITY: Requires authentication + rate limited (30 mutations/min)
    */
-  deleteAccount: protectedProcedure
+  deleteAccount: rateLimitedMutationProcedure
     .mutation(async ({ ctx }) => {
-      // ctx.userId is guaranteed to be valid by protectedProcedure middleware
+      // ctx.userId is guaranteed by rateLimitedMutationProcedure (uses authMiddleware)
       const user = ctx.userRepository.findById(ctx.userId);
 
       if (!user) {

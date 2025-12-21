@@ -92,42 +92,20 @@ export const profileRouter = router({
 
   /**
    * Get user profile by ID
+   * SECURITY: Requires authentication - users can only access their own profiles
    */
-  getProfile: publicProcedure
+  getProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      // Verify ownership - allow read access to orphaned profiles only for anonymous users
-      if (ctx.userId !== ANONYMOUS_USER_ID) {
-        if (!profile.userId || profile.userId !== ctx.userId) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'You do not have access to this profile',
-          });
-        }
-      }
-
-      return profile;
+      return verifyProfileOwnership(ctx, input.id);
     }),
 
   /**
    * Get all profiles for the current user
+   * SECURITY: Requires authentication - users can only see their own profiles
    */
-  listProfiles: publicProcedure
+  listProfiles: protectedProcedure
     .query(async ({ ctx }) => {
-      if (ctx.userId === ANONYMOUS_USER_ID) {
-        // Anonymous users can only see the default profile
-        const defaultProfile = ctx.profileRepository.getDefault();
-        return defaultProfile ? [defaultProfile] : [];
-      }
       return ctx.profileRepository.findByUserId(ctx.userId);
     }),
 
@@ -153,32 +131,8 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      // Verify ownership - orphaned profiles (no userId) cannot be modified
-      if (!profile.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'This profile has no owner and cannot be modified. Please create a new profile.',
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to modify this profile',
-        });
-      }
-
-      const updated = ctx.profileRepository.update(input.id, input.data);
-      return updated;
+      verifyProfileOwnership(ctx, input.id);
+      return ctx.profileRepository.update(input.id, input.data);
     }),
 
   /**
@@ -188,30 +142,7 @@ export const profileRouter = router({
   deleteProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      // Verify ownership - orphaned profiles (no userId) cannot be deleted
-      if (!profile.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'This profile has no owner and cannot be deleted. Contact an administrator.',
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have permission to delete this profile',
-        });
-      }
-
+      verifyProfileOwnership(ctx, input.id);
       ctx.profileRepository.delete(input.id);
       return { success: true };
     }),
@@ -223,22 +154,7 @@ export const profileRouter = router({
   setDefaultProfile: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const profile = ctx.profileRepository.findById(input.id);
-
-      if (!profile) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: `Profile with ID ${input.id} not found`,
-        });
-      }
-
-      if (profile.userId !== ctx.userId) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'You do not have access to this profile',
-        });
-      }
-
+      verifyProfileOwnership(ctx, input.id);
       return ctx.profileRepository.setDefault(input.id, ctx.userId);
     }),
 
@@ -254,7 +170,6 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       verifyProfileOwnership(ctx, input.id);
       return ctx.profileRepository.update(input.id, { contact: input.contact });
     }),
@@ -271,7 +186,6 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       verifyProfileOwnership(ctx, input.id);
       return ctx.profileRepository.update(input.id, { preferences: input.preferences });
     }),
@@ -288,7 +202,6 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
       const skills = [...(profile.skills || []), input.skill];
       return ctx.profileRepository.update(input.profileId, { skills });
@@ -306,9 +219,8 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
-      const skills = (profile.skills || []).filter(s => s.name !== input.skillName);
+      const skills = (profile.skills || []).filter((skill) => skill.name !== input.skillName);
       return ctx.profileRepository.update(input.profileId, { skills });
     }),
 
@@ -324,7 +236,6 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
       const experience = [...(profile.experience || []), input.experience];
       return ctx.profileRepository.update(input.profileId, { experience });
@@ -343,9 +254,8 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
-      const experience = (profile.experience || []).map(exp =>
+      const experience = (profile.experience || []).map((exp) =>
         exp.id === input.experienceId ? { ...exp, ...input.experience } : exp
       );
       return ctx.profileRepository.update(input.profileId, { experience });
@@ -363,9 +273,8 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
-      const experience = (profile.experience || []).filter(e => e.id !== input.experienceId);
+      const experience = (profile.experience || []).filter((exp) => exp.id !== input.experienceId);
       return ctx.profileRepository.update(input.profileId, { experience });
     }),
 
@@ -381,7 +290,6 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
       const education = [...(profile.education || []), input.education];
       return ctx.profileRepository.update(input.profileId, { education });
@@ -400,9 +308,8 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
-      const education = (profile.education || []).map(edu =>
+      const education = (profile.education || []).map((edu) =>
         edu.id === input.educationId ? { ...edu, ...input.education } : edu
       );
       return ctx.profileRepository.update(input.profileId, { education });
@@ -420,9 +327,8 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
-      const education = (profile.education || []).filter(e => e.id !== input.educationId);
+      const education = (profile.education || []).filter((edu) => edu.id !== input.educationId);
       return ctx.profileRepository.update(input.profileId, { education });
     }),
 
@@ -438,7 +344,6 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
       const projects = [...(profile.projects || []), input.project];
       return ctx.profileRepository.update(input.profileId, { projects });
@@ -456,7 +361,6 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       const profile = verifyProfileOwnership(ctx, input.profileId);
       const certifications = [...(profile.certifications || []), input.certification];
       return ctx.profileRepository.update(input.profileId, { certifications });
@@ -475,9 +379,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       verifyProfileOwnership(ctx, input.profileId);
-
       return ctx.profileRepository.update(input.profileId, {
         resumeContent: input.resumeContent,
         resumePath: input.resumePath,
@@ -497,9 +399,7 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify ownership before modification
       verifyProfileOwnership(ctx, input.profileId);
-
       return ctx.profileRepository.update(input.profileId, {
         coverLetterTemplate: input.coverLetterTemplate,
       });
@@ -518,9 +418,7 @@ export const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.profileId) {
-        // SECURITY: Verify ownership before modification
         verifyProfileOwnership(ctx, input.profileId);
-
         return ctx.profileRepository.update(input.profileId, {
           resumePath: input.resumePath,
           parsedAt: new Date().toISOString(),
@@ -540,8 +438,6 @@ export const profileRouter = router({
   duplicateProfile: protectedProcedure
     .input(z.object({ id: z.string(), newName: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
-      // SECURITY: Verify user owns the source profile before duplicating
-      // This prevents users from copying other users' private profile data
       const profile = verifyProfileOwnership(ctx, input.id);
 
       // Create a copy of the profile (profile is guaranteed to exist after ownership check)

@@ -71,6 +71,9 @@ export async function initDatabase(config: DatabaseConfig): Promise<SqlJsDatabas
 
 /**
  * Initialize database synchronously (for backwards compatibility)
+ * @deprecated This function is no longer supported. Use `initDatabase` (async) instead.
+ * This function will always throw an error as sql.js requires async initialization.
+ * @throws {DatabaseError} Always throws an error directing users to use the async version
  */
 export function initDatabaseSync(_config: DatabaseConfig): SqlJsDatabase {
   throw new DatabaseError('Use initDatabase (async) instead of initDatabaseSync with sql.js');

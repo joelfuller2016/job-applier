@@ -29,11 +29,9 @@ declare module 'next-auth/jwt' {
 /**
  * Environment detection
  * isDevelopment: Only true for local development (NODE_ENV=development)
- * isProduction: True for production deployments (NODE_ENV=production)
  * Note: Staging/testing environments should set NODE_ENV appropriately
  */
 const isDevelopment = process.env.NODE_ENV === 'development';
-const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Check if demo auth is enabled and properly configured
@@ -57,10 +55,10 @@ function validateAuthConfig(): void {
     );
   }
 
-  // Demo auth requires DEMO_PASSWORD when enabled
-  if (isDemoAuthEnabled && !process.env.DEMO_PASSWORD) {
+  // Demo auth requires NEXT_PUBLIC_DEMO_PASSWORD when enabled
+  if (isDemoAuthEnabled && !process.env.NEXT_PUBLIC_DEMO_PASSWORD) {
     throw new Error(
-      '[Auth Configuration Error] DEMO_PASSWORD environment variable is required when ENABLE_DEMO_AUTH=true. ' +
+      '[Auth Configuration Error] NEXT_PUBLIC_DEMO_PASSWORD environment variable is required when ENABLE_DEMO_AUTH=true. ' +
       'Set a secure password in your .env file.'
     );
   }
@@ -94,7 +92,7 @@ export const authOptions: AuthOptions = {
               // Validate demo credentials - password from environment
               if (
                 credentials?.email === 'demo@example.com' &&
-                credentials?.password === process.env.DEMO_PASSWORD
+                credentials?.password === process.env.NEXT_PUBLIC_DEMO_PASSWORD
               ) {
                 return {
                   id: 'demo-user-id',

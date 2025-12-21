@@ -102,6 +102,8 @@ export function envToAppConfig(env: EnvConfig): AppConfig {
       timestamps: true,
     },
     preferences: {
+      defaultKeywords: '',
+      defaultLocation: '',
       minMatchScore: env.MIN_MATCH_SCORE,
       autoApply: env.AUTO_APPLY,
       requireReview: env.REQUIRE_REVIEW,
