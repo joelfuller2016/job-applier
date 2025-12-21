@@ -49,6 +49,8 @@ const defaultValues: GeneralSettingsValues = {
   applicationDelay: 5,
 };
 
+const STORAGE_KEY = 'job-applier.generalSettings';
+
 export function GeneralSettings() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(false);
@@ -58,11 +60,34 @@ export function GeneralSettings() {
     defaultValues,
   });
 
+  React.useEffect(() => {
+    const storedSettings = localStorage.getItem(STORAGE_KEY);
+    if (!storedSettings) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedSettings);
+      const result = generalSettingsSchema.safeParse(parsed);
+      if (result.success) {
+        form.reset({
+          ...defaultValues,
+          ...result.data,
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to parse stored general settings', error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const onSubmit = async (data: GeneralSettingsValues) => {
     setIsLoading(true);
     try {
       // TODO: Implement tRPC mutation to save settings
       // await trpc.settings.updateGeneral.mutate(data);
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 
       console.log('General settings:', data);
 
