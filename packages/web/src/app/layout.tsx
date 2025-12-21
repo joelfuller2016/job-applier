@@ -1,12 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-});
+// System font stack CSS class (avoiding Google Fonts network dependency during build)
+const systemFontClass = 'font-sans';
 
 export const viewport: Viewport = {
   themeColor: [
@@ -58,7 +55,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={systemFontClass}>
         <Providers>
           {children}
         </Providers>

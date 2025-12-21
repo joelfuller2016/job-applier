@@ -188,7 +188,7 @@ export class AIFormFiller {
         resumePath: userProfile.resumePath || '',
       };
 
-      if (directMappings[field.profileMapping]) {
+      if (typeof field.profileMapping === 'string' && directMappings[field.profileMapping]) {
         return directMappings[field.profileMapping];
       }
     }

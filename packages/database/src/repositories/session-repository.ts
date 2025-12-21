@@ -385,14 +385,26 @@ export class SessionRepository {
    */
   cleanupOldSessions(daysOld: number = 30): number {
     try {
-      const result = run(`
-        DELETE FROM automation_sessions
+      // Count rows to be deleted first
+      const countResult = get<{ count: number }>(`
+        SELECT COUNT(*) as count FROM automation_sessions
         WHERE status IN ('completed', 'stopped', 'error')
         AND ended_at < datetime('now', '-' || ? || ' days')
       `, [daysOld]);
 
-      saveDatabase();
-      return result.changes ?? 0;
+      const count = countResult?.count ?? 0;
+
+      if (count > 0) {
+        run(`
+          DELETE FROM automation_sessions
+          WHERE status IN ('completed', 'stopped', 'error')
+          AND ended_at < datetime('now', '-' || ? || ' days')
+        `, [daysOld]);
+
+        saveDatabase();
+      }
+
+      return count;
     } catch (error) {
       throw new DatabaseError(
         `Failed to cleanup sessions: ${error instanceof Error ? error.message : String(error)}`

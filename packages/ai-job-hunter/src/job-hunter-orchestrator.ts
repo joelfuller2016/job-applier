@@ -5,7 +5,7 @@
 
 import { Page } from 'playwright';
 import { v4 as uuid } from 'uuid';
-import { UserProfile } from '@job-applier/core';
+import { UserProfile, Skill, WorkExperience, Education } from '@job-applier/core';
 import { getBrowserManager } from '@job-applier/browser-automation';
 import { getConfigManager } from '@job-applier/config';
 import { WebJobDiscovery } from './web-job-discovery.js';
@@ -245,13 +245,13 @@ export class JobHunterOrchestrator {
         const analysis = await this.analyzer.analyzeJobMatch(
           job.description,
           {
-            skills: userProfile.skills.map(s => s.name),
-            experience: userProfile.experience.map(e => ({
+            skills: userProfile.skills.map((s: Skill) => s.name),
+            experience: userProfile.experience.map((e: WorkExperience) => ({
               title: e.title,
               company: e.company,
               description: e.description,
             })),
-            education: userProfile.education.map(e => ({
+            education: userProfile.education.map((e: Education) => ({
               degree: e.degree,
               field: e.field,
             })),
