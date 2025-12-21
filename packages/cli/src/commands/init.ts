@@ -77,6 +77,18 @@ export function createInitCommand(): Command {
           name: 'minDelayBetweenActions',
           message: 'Minimum delay between actions (seconds):',
           default: 2,
+          validate: (input) => {
+            if (!Number.isFinite(input)) {
+              return 'Minimum delay must be a number';
+            }
+            if (input <= 0) {
+              return 'Minimum delay must be greater than 0';
+            }
+            if (input > 300) {
+              return 'Minimum delay must not exceed 300 seconds';
+            }
+            return true;
+          },
         },
         {
           type: 'number',
@@ -93,6 +105,12 @@ export function createInitCommand(): Command {
             }
             if (!Number.isFinite(input)) {
               return 'Maximum delay must be a number';
+            }
+            if (input <= 0) {
+              return 'Maximum delay must be greater than 0';
+            }
+            if (input > 300) {
+              return 'Maximum delay must not exceed 300 seconds';
             }
             return input >= minDelay || 'Maximum delay must be at least minimum delay';
           },
