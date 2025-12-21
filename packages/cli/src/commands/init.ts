@@ -6,6 +6,22 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
+ * Validates delay values to ensure they are positive and within reasonable bounds
+ */
+function validateDelay(input: number, fieldName: string): true | string {
+  if (!Number.isFinite(input)) {
+    return `${fieldName} must be a number`;
+  }
+  if (input <= 0) {
+    return `${fieldName} must be greater than 0`;
+  }
+  if (input > 300) {
+    return `${fieldName} must not exceed 300 seconds`;
+  }
+  return true;
+}
+
+/**
  * Initialize configuration command
  */
 export function createInitCommand(): Command {
@@ -77,18 +93,7 @@ export function createInitCommand(): Command {
           name: 'minDelayBetweenActions',
           message: 'Minimum delay between actions (seconds):',
           default: 2,
-          validate: (input) => {
-            if (!Number.isFinite(input)) {
-              return 'Minimum delay must be a number';
-            }
-            if (input <= 0) {
-              return 'Minimum delay must be greater than 0';
-            }
-            if (input > 300) {
-              return 'Minimum delay must not exceed 300 seconds';
-            }
-            return true;
-          },
+          validate: (input) => validateDelay(input, 'Minimum delay'),
         },
         {
           type: 'number',
@@ -100,17 +105,13 @@ export function createInitCommand(): Command {
               typeof answers.minDelayBetweenActions === 'number'
                 ? answers.minDelayBetweenActions
                 : Number(answers.minDelayBetweenActions);
-            if (!Number.isFinite(minDelay)) {
-              return 'Minimum delay must be a number';
+            const delayValidation = validateDelay(input, 'Maximum delay');
+            if (delayValidation !== true) {
+              return delayValidation;
             }
-            if (!Number.isFinite(input)) {
-              return 'Maximum delay must be a number';
-            }
-            if (input <= 0) {
-              return 'Maximum delay must be greater than 0';
-            }
-            if (input > 300) {
-              return 'Maximum delay must not exceed 300 seconds';
+            const minDelayValidation = validateDelay(minDelay, 'Minimum delay');
+            if (minDelayValidation !== true) {
+              return minDelayValidation;
             }
             return input >= minDelay || 'Maximum delay must be at least minimum delay';
           },
