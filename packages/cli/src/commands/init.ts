@@ -6,7 +6,9 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
- * Initialize configuration command
+ * Create the 'init' CLI command that prompts for API keys, application settings, and optional platform credentials, then writes them to a .env file.
+ *
+ * @returns The configured Command instance for the `init` command.
  */
 export function createInitCommand(): Command {
   const command = new Command('init');
