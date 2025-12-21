@@ -17,6 +17,7 @@ import { router, publicProcedure, rateLimitedPublicProcedure, rateLimitedMutatio
 export const authRouter = router({
   /**
    * Get current authenticated user info
+   * NOTE: Must be publicProcedure to check auth status
    */
   getSession: publicProcedure
     .query(async ({ ctx }) => {

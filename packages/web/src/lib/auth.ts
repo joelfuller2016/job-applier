@@ -29,7 +29,6 @@ declare module 'next-auth/jwt' {
 /**
  * Environment detection
  * isDevelopment: Only true for local development (NODE_ENV=development)
- * Note: Staging/testing/production environments (NODE_ENV=production)
  * Note: Staging/testing environments should set NODE_ENV appropriately
  */
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -134,7 +133,11 @@ export const authOptions: AuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    // SECURITY: Reduced from 30 days to 7 days to limit session hijacking window
+    // See: https://github.com/joelfuller2016/job-applier/issues/17
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+    // Refresh session token daily to detect compromised sessions earlier
+    updateAge: 24 * 60 * 60, // 24 hours
   },
   // SECURITY: Secret is validated in validateAuthConfig() - fallback only for local development
   secret: process.env.NEXTAUTH_SECRET || (isDevelopment ? 'dev-only-secret-not-for-production' : undefined),

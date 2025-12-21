@@ -2,12 +2,25 @@
  * Automation Router
  * Handles automation control and status endpoints
  *
- * SECURITY: Session operations verify ownership
+ * SECURITY FIX: Now uses database-backed sessions instead of in-memory Map
+ * See: https://github.com/joelfuller2016/job-applier/issues/37
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure, rateLimitedMutationProcedure } from '../trpc';
+
+// Types
+const AutomationStatusSchema = z.object({
+  state: z.enum(['idle', 'running', 'paused', 'error']),
+  currentTask: z.string().optional(),
+  progress: z.number().optional(),
+  totalJobs: z.number().optional(),
+  processedJobs: z.number().optional(),
+  platform: z.enum(['linkedin', 'indeed', 'both']).optional(),
+  startedAt: z.string().optional(),
+  lastActivity: z.string().optional(),
+});
 
 const AutomationConfigSchema = z.object({
   platforms: z.array(z.enum(['linkedin', 'indeed'])),
@@ -20,7 +33,6 @@ const AutomationConfigSchema = z.object({
 
 const AutomationSessionSchema = z.object({
   id: z.string(),
-  userId: z.string(),
   startedAt: z.string(),
   endedAt: z.string().optional(),
   config: AutomationConfigSchema,
@@ -32,143 +44,294 @@ const AutomationSessionSchema = z.object({
   status: z.enum(['active', 'completed', 'stopped', 'error']),
 });
 
-type AutomationSession = z.infer<typeof AutomationSessionSchema>;
-
-const activeSessions: Map<string, AutomationSession> = new Map();
-
-function getUserSession(userId: string): AutomationSession | null {
-  for (const session of Array.from(activeSessions.values())) {
-    if (session.userId === userId && session.status === 'active') {
-      return session;
-    }
-  }
-  return null;
-}
-
-function verifySessionOwnership(sessionId: string, userId: string): AutomationSession {
-  const session = activeSessions.get(sessionId);
-  if (!session) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Automation session not found.' });
-  }
-  if (session.userId !== userId) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied to this automation session.' });
-  }
-  return session;
-}
-
 export const automationRouter = router({
+  /**
+   * Get current automation status
+   * SECURITY: Requires authentication to access user-specific session data
+   */
   getStatus: protectedProcedure.query(async ({ ctx }) => {
-    const session = getUserSession(ctx.userId);
-    if (!session) {
-      return { state: 'idle' as const, progress: 0, totalJobs: 0, processedJobs: 0 };
+    // Check for active session in database
+    // Note: sessionRepository may not be available in all contexts
+    const sessionRepo = (ctx as { sessionRepository?: { findActiveByUserAndType: (userId: string, type: string) => { status: string; currentTask?: string; progress?: number; totalItems?: number; processedItems?: number; startedAt?: string; lastActivityAt?: string } | null } }).sessionRepository;
+
+    if (sessionRepo) {
+      const activeSession = sessionRepo.findActiveByUserAndType(ctx.userId, 'automation');
+      if (activeSession) {
+        return {
+          state: activeSession.status === 'paused' ? 'paused' as const : 'running' as const,
+          currentTask: activeSession.currentTask,
+          progress: activeSession.progress,
+          totalJobs: activeSession.totalItems,
+          processedJobs: activeSession.processedItems,
+          startedAt: activeSession.startedAt,
+          lastActivity: activeSession.lastActivityAt,
+        };
+      }
     }
+
     return {
-      state: 'running' as const,
-      sessionId: session.id,
-      progress: session.stats.applicationsSubmitted,
-      totalJobs: session.config.maxApplicationsPerDay,
-      processedJobs: session.stats.applicationsSubmitted,
+      state: 'idle' as const,
+      currentTask: undefined,
+      progress: 0,
+      totalJobs: 0,
+      processedJobs: 0,
     };
   }),
 
-  getConfig: publicProcedure.query(async () => ({
-    platforms: ['linkedin'] as ('linkedin' | 'indeed')[],
-    searchQuery: '',
-    maxApplicationsPerDay: 25,
-    maxApplicationsPerHour: 5,
-    headless: false,
-    autoRetry: true,
-  })),
+  /**
+   * Get automation configuration
+   * SECURITY: Requires authentication
+   */
+  getConfig: protectedProcedure.query(async () => {
+    // In a real implementation, this would read from config/database
+    return {
+      platforms: ['linkedin'] as ('linkedin' | 'indeed')[],
+      searchQuery: '',
+      maxApplicationsPerDay: 25,
+      maxApplicationsPerHour: 5,
+      headless: false,
+      autoRetry: true,
+    };
+  }),
 
+  /**
+   * Update automation configuration
+   * SECURITY: Requires authentication + rate limiting
+   */
   updateConfig: rateLimitedMutationProcedure
     .input(AutomationConfigSchema.partial())
-    .mutation(async ({ ctx, input }) => {
-      console.log(`User ${ctx.userId} updating config`);
+    .mutation(async ({ input }) => {
+      // In a real implementation, this would save to config/database
       return { success: true, config: input };
     }),
 
+  /**
+   * Start automation
+   * SECURITY: Requires authentication + rate limiting
+   */
   start: rateLimitedMutationProcedure
-    .input(z.object({
-      platforms: z.array(z.enum(['linkedin', 'indeed'])),
-      searchQuery: z.string().optional(),
-      maxApplications: z.number().optional(),
-    }))
+    .input(
+      z.object({
+        platforms: z.array(z.enum(['linkedin', 'indeed'])),
+        searchQuery: z.string().optional(),
+        maxApplications: z.number().optional(),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
-      if (getUserSession(ctx.userId)) {
-        throw new TRPCError({ code: 'CONFLICT', message: 'Active session exists.' });
+      // Check for existing active session
+      const existingSession = ctx.sessionRepository.findActiveByUserAndType(ctx.userId, 'automation');
+      if (existingSession) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'An automation session is already running. Stop it first.',
+        });
       }
-      const sessionId = crypto.randomUUID();
-      activeSessions.set(sessionId, {
-        id: sessionId,
+
+      // Create new session in database
+      const session = ctx.sessionRepository.create({
         userId: ctx.userId,
-        startedAt: new Date().toISOString(),
-        config: { ...input, maxApplicationsPerDay: input.maxApplications || 25, maxApplicationsPerHour: 5, headless: false, autoRetry: true },
-        stats: { applicationsSubmitted: 0, applicationsSkipped: 0, errorsEncountered: 0 },
-        status: 'active',
+        type: 'automation',
+        config: {
+          platforms: input.platforms,
+          searchQuery: input.searchQuery,
+          maxApplications: input.maxApplications,
+        },
+        totalItems: input.maxApplications ?? 25,
       });
-      return { success: true, sessionId, message: 'Automation started' };
+
+      return {
+        success: true,
+        sessionId: session.id,
+        message: 'Automation started',
+      };
     }),
 
-  stop: protectedProcedure
-    .input(z.object({ sessionId: z.string().optional() }).optional())
-    .mutation(async ({ ctx, input }) => {
-      const session = input?.sessionId 
-        ? verifySessionOwnership(input.sessionId, ctx.userId)
-        : getUserSession(ctx.userId);
-      if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: 'No active session.' });
-      session.status = 'stopped';
-      session.endedAt = new Date().toISOString();
-      return { success: true, message: 'Stopped' };
-    }),
+  /**
+   * Stop automation
+   * SECURITY: Requires authentication
+   */
+  stop: protectedProcedure.mutation(async ({ ctx }) => {
+    const session = ctx.sessionRepository.findActiveByUserAndType(ctx.userId, 'automation');
+    if (!session) {
+      return {
+        success: false,
+        message: 'No active automation session found',
+      };
+    }
 
-  pause: protectedProcedure
-    .input(z.object({ sessionId: z.string().optional() }).optional())
-    .mutation(async ({ ctx, input }) => {
-      const session = input?.sessionId 
-        ? verifySessionOwnership(input.sessionId, ctx.userId)
-        : getUserSession(ctx.userId);
-      if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: 'No active session.' });
-      return { success: true, message: 'Paused' };
-    }),
+    // Request cancellation (polling-based)
+    ctx.sessionRepository.requestCancel(session.id);
+    ctx.sessionRepository.update(session.id, { status: 'stopped' });
 
-  resume: protectedProcedure
-    .input(z.object({ sessionId: z.string().optional() }).optional())
-    .mutation(async ({ ctx, input }) => {
-      const session = input?.sessionId 
-        ? verifySessionOwnership(input.sessionId, ctx.userId)
-        : getUserSession(ctx.userId);
-      if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: 'No active session.' });
-      return { success: true, message: 'Resumed' };
-    }),
+    return {
+      success: true,
+      message: 'Automation stopped',
+    };
+  }),
 
+  /**
+   * Pause automation
+   * SECURITY: Requires authentication
+   */
+  pause: protectedProcedure.mutation(async ({ ctx }) => {
+    const session = ctx.sessionRepository.findActiveByUserAndType(ctx.userId, 'automation');
+    if (!session) {
+      return {
+        success: false,
+        message: 'No active automation session found',
+      };
+    }
+
+    ctx.sessionRepository.update(session.id, { status: 'paused' });
+
+    return {
+      success: true,
+      message: 'Automation paused',
+    };
+  }),
+
+  /**
+   * Resume automation
+   * SECURITY: Requires authentication
+   */
+  resume: protectedProcedure.mutation(async ({ ctx }) => {
+    const session = ctx.sessionRepository.findActiveByUserAndType(ctx.userId, 'automation');
+    if (!session || session.status !== 'paused') {
+      return {
+        success: false,
+        message: 'No paused automation session found',
+      };
+    }
+
+    ctx.sessionRepository.update(session.id, { status: 'active' });
+
+    return {
+      success: true,
+      message: 'Automation resumed',
+    };
+  }),
+
+  /**
+   * Get automation history/sessions
+   * SECURITY: Requires authentication
+   */
   getSessions: protectedProcedure
-    .input(z.object({ limit: z.number().default(10), offset: z.number().default(0) }))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+        offset: z.number().min(0).default(0),
+      })
+    )
     .query(async ({ ctx, input }) => {
-      const userSessions = Array.from(activeSessions.values()).filter(s => s.userId === ctx.userId);
-      return { sessions: userSessions.slice(input.offset, input.offset + input.limit), total: userSessions.length };
+      const sessions = ctx.sessionRepository.findByUser(ctx.userId, {
+        type: 'automation',
+        limit: input.limit,
+        offset: input.offset,
+      });
+
+      return {
+        sessions: sessions.map(s => ({
+          id: s.id,
+          startedAt: s.startedAt,
+          endedAt: s.endedAt,
+          config: s.config,
+          stats: {
+            applicationsSubmitted: s.stats.applicationsSubmitted ?? 0,
+            applicationsSkipped: s.stats.applicationsSkipped ?? 0,
+            errorsEncountered: s.stats.errorsEncountered ?? 0,
+          },
+          status: s.status,
+        })),
+        total: sessions.length,
+      };
     }),
 
+  /**
+   * Get session by ID
+   * SECURITY: Requires authentication
+   */
   getSession: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const session = activeSessions.get(input.id);
-      if (!session) return null;
-      if (session.userId !== ctx.userId) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied.' });
+      const session = ctx.sessionRepository.findById(input.id);
+
+      // Verify ownership
+      if (!session || session.userId !== ctx.userId) {
+        return null;
       }
-      return session;
+
+      return {
+        id: session.id,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        config: session.config,
+        stats: {
+          applicationsSubmitted: session.stats.applicationsSubmitted ?? 0,
+          applicationsSkipped: session.stats.applicationsSkipped ?? 0,
+          errorsEncountered: session.stats.errorsEncountered ?? 0,
+        },
+        status: session.status,
+      };
     }),
 
+  /**
+   * Get automation logs
+   * SECURITY: Requires authentication
+   */
   getLogs: protectedProcedure
-    .input(z.object({ sessionId: z.string().optional(), limit: z.number().default(100) }))
+    .input(
+      z.object({
+        sessionId: z.string().optional(),
+        level: z.enum(['info', 'warn', 'error', 'debug']).optional(),
+        limit: z.number().min(1).max(500).default(100),
+        offset: z.number().min(0).default(0),
+      })
+    )
     .query(async ({ ctx, input }) => {
-      if (input.sessionId) verifySessionOwnership(input.sessionId, ctx.userId);
-      return { logs: [], total: 0 };
+      if (!input.sessionId) {
+        return { logs: [], total: 0 };
+      }
+
+      // Verify session ownership
+      const session = ctx.sessionRepository.findById(input.sessionId);
+      if (!session || session.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this session',
+        });
+      }
+
+      const logs = ctx.sessionRepository.getLogs(input.sessionId, {
+        level: input.level,
+        limit: input.limit,
+        offset: input.offset,
+      });
+
+      return {
+        logs: logs.map(l => ({
+          id: l.id,
+          timestamp: l.timestamp,
+          level: l.level,
+          message: l.message,
+          context: l.context,
+        })),
+        total: logs.length,
+      };
     }),
 
-  getRateLimitStatus: protectedProcedure.query(async () => ({
-    dailyLimit: 25, dailyUsed: 0, dailyRemaining: 25,
-    hourlyLimit: 5, hourlyUsed: 0, hourlyRemaining: 5,
-    resetTime: new Date(Date.now() + 3600000).toISOString(),
-  })),
+  /**
+   * Get rate limit status
+   */
+  getRateLimitStatus: publicProcedure.query(async () => {
+    // In a real implementation, this would check rate limits
+    return {
+      dailyLimit: 25,
+      dailyUsed: 0,
+      dailyRemaining: 25,
+      hourlyLimit: 5,
+      hourlyUsed: 0,
+      hourlyRemaining: 5,
+      resetTime: new Date(Date.now() + 3600000).toISOString(),
+    };
+  }),
 });

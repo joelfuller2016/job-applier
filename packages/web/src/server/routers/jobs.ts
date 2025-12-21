@@ -1,22 +1,14 @@
 /**
  * Jobs Router
  * Handles job listing operations
- *
- * SECURITY NOTE: Jobs are SHARED external resources scraped from platforms.
- * They do not have user ownership - any authenticated user can modify/delete.
- *
- * ACCESS MODEL DECISION (AI-Counsel reviewed):
- * - Jobs are external entities from LinkedIn, Indeed, etc.
- * - Not user-created content, so no natural ownership
- * - Current single-user architecture: shared access is appropriate
- * - For multi-tenant: Consider application-scoped access
- *
- * TODO (Multi-tenant): Implement application-scoped access control
+ * 
+ * SECURITY FIX: Mutations now use adminProcedure since jobs are shared resources
+ * See: https://github.com/joelfuller2016/job-applier/issues/27
  */
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure, protectedProcedure } from '../trpc';
+import { router, publicProcedure, adminProcedure } from '../trpc';
 import { JobSearchQuery } from '@job-applier/core';
 
 /**
@@ -25,6 +17,7 @@ import { JobSearchQuery } from '@job-applier/core';
 export const jobsRouter = router({
   /**
    * List jobs with optional filters
+   * NOTE: Public - job listings are shared resources
    */
   list: publicProcedure
     .input(
@@ -38,6 +31,7 @@ export const jobsRouter = router({
 
   /**
    * Get job by ID
+   * NOTE: Public - job details are shared resources
    */
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
@@ -56,6 +50,7 @@ export const jobsRouter = router({
 
   /**
    * Search jobs with filters
+   * NOTE: Public - job search is available to all users
    */
   search: publicProcedure
     .input(
@@ -76,6 +71,7 @@ export const jobsRouter = router({
 
   /**
    * Get job counts by platform
+   * NOTE: Public - statistics are available to all users
    */
   countByPlatform: publicProcedure
     .query(async ({ ctx }) => {
@@ -84,9 +80,10 @@ export const jobsRouter = router({
 
   /**
    * Update job status (for manual edits)
-   * SECURITY: Requires authentication to modify job data
+   * SECURITY: Requires ADMIN access - jobs are shared resources
+   * Regular users should track applications via the applications router
    */
-  updateStatus: protectedProcedure
+  updateStatus: adminProcedure
     .input(
       z.object({
         id: z.string(),
@@ -111,9 +108,10 @@ export const jobsRouter = router({
 
   /**
    * Delete a job
-   * SECURITY: Requires authentication to delete jobs
+   * SECURITY: Requires ADMIN access - jobs are shared resources
+   * Only administrators should be able to remove jobs from the system
    */
-  delete: protectedProcedure
+  delete: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const deleted = ctx.jobRepository.delete(input.id);

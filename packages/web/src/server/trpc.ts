@@ -14,10 +14,7 @@ import { ANONYMOUS_USER_ID, LEGACY_DEFAULT_USER_ID } from '../lib/constants';
  * Sliding window rate limiter with automatic cleanup
  *
  * NOTE: This is an in-memory implementation suitable for single-instance deployments.
- * For horizontal scaling, replace with Redis-based implementation using:
- * - ioredis for Redis client
- * - Lua scripts for atomic operations
- * - Sorted sets for sliding window
+ * For horizontal scaling, replace with Redis-based implementation.
  */
 class RateLimiter {
   private requests: Map<string, { count: number; windowStart: number }> = new Map();
@@ -82,7 +79,7 @@ class RateLimiter {
 }
 
 // Rate limiters for different endpoint categories
-const generalRateLimiter = new RateLimiter(60000, 100);  // 100 req/min general
+const generalRateLimiter = new RateLimiter(60000, 100);  // 100 req/min for general queries
 const mutationRateLimiter = new RateLimiter(60000, 30);  // 30 mutations/min
 const aiRateLimiter = new RateLimiter(60000, 10);        // 10 AI calls/min
 
@@ -138,8 +135,10 @@ export const publicProcedure = t.procedure;
 
 /**
  * Middleware for authentication
+ * Ensures user is authenticated before proceeding
  */
 export const authMiddleware = t.middleware(async ({ ctx, next }) => {
+  // Check if user is authenticated (not using anonymous/unauthenticated user)
   if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID || ctx.userId === LEGACY_DEFAULT_USER_ID) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
@@ -150,6 +149,7 @@ export const authMiddleware = t.middleware(async ({ ctx, next }) => {
   return next({
     ctx: {
       ...ctx,
+      // Narrow the type to ensure userId is defined and not anonymous/default
       userId: ctx.userId as string,
     },
   });
@@ -194,23 +194,25 @@ const aiRateLimitMiddleware = createRateLimitMiddleware(aiRateLimiter, 'AI opera
 
 /**
  * Protected procedure - requires authentication
+ * Use this for any endpoint that modifies user data or accesses sensitive info
  */
 export const protectedProcedure = t.procedure.use(authMiddleware);
 
 /**
- * Rate-limited public procedure
+ * Rate-limited public procedure (100 req/min)
  */
 export const rateLimitedPublicProcedure = t.procedure.use(generalRateLimitMiddleware);
 
 /**
- * Rate-limited protected procedure for mutations
+ * Rate-limited protected procedure for mutations (30/min)
  */
 export const rateLimitedMutationProcedure = t.procedure
   .use(authMiddleware)
   .use(mutationRateLimitMiddleware);
 
 /**
- * Rate-limited procedure for AI operations
+ * Rate-limited procedure for AI operations (10/min)
+ * SECURITY: Protects expensive Anthropic/Exa API calls from abuse
  */
 export const aiRateLimitedProcedure = t.procedure
   .use(authMiddleware)
@@ -234,7 +236,7 @@ export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID || ctx.userId === LEGACY_DEFAULT_USER_ID) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
-      message: 'Authentication required.',
+      message: 'Authentication required. Please sign in to perform this action.',
     });
   }
 
@@ -244,7 +246,7 @@ export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
   if (!isAdmin) {
     throw new TRPCError({
       code: 'FORBIDDEN',
-      message: 'Administrator privileges required for this operation.',
+      message: 'Administrator access required.',
     });
   }
 
@@ -258,12 +260,13 @@ export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
 });
 
 /**
- * Admin procedure - requires admin privileges
+ * Admin procedure - requires authentication AND admin role
+ * Use this for system-wide settings, user management, etc.
  */
 export const adminProcedure = t.procedure.use(adminMiddleware);
 
 /**
- * Middleware for logging
+ * Middleware for logging (optional)
  */
 export const loggerMiddleware = t.middleware(async ({ path, type, next }) => {
   const start = Date.now();

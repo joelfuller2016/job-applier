@@ -2,11 +2,12 @@
  * Settings Router
  * Handles application settings and configuration
  * 
- * SECURITY: Global settings require admin privileges to modify
+ * SECURITY: Settings mutations require admin access.
+ * Regular users can only read settings, not modify them.
  */
 
 import { z } from 'zod';
-import { router, publicProcedure, adminProcedure } from '../trpc';
+import { router, protectedProcedure, adminProcedure } from '../trpc';
 
 /**
  * Settings router for app configuration
@@ -14,9 +15,9 @@ import { router, publicProcedure, adminProcedure } from '../trpc';
 export const settingsRouter = router({
   /**
    * Get current application settings
-   * Public: Anyone can view non-sensitive settings
+   * SECURITY: Requires authentication (users can read their settings)
    */
-  getSettings: publicProcedure
+  getSettings: protectedProcedure
     .query(async ({ ctx }) => {
       const config = ctx.config;
 
@@ -60,7 +61,13 @@ export const settingsRouter = router({
 
   /**
    * Update application settings
-   * SECURITY: Requires ADMIN privileges - these are global settings
+   * SECURITY: Requires ADMIN access - modifies global configuration
+   * 
+   * This endpoint allows modification of system-wide settings including:
+   * - AI model configuration (affects all users)
+   * - Rate limits (affects all users)
+   * - Browser automation settings
+   * - Logging configuration
    */
   updateSettings: adminProcedure
     .input(
@@ -144,11 +151,44 @@ export const settingsRouter = router({
     }),
 
   /**
+   * Update API keys
+   * SECURITY: Requires ADMIN access
+   */
+  updateApiKeys: adminProcedure
+    .input(
+      z.object({
+        claudeApiKey: z.string().min(1),
+        exaApiKey: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updates: Record<string, unknown> = {};
+
+      if (input.claudeApiKey) {
+        updates.claude = { apiKey: input.claudeApiKey };
+      }
+
+      // Only update Exa key if provided and not empty
+      if (input.exaApiKey && input.exaApiKey.trim() !== '') {
+        updates.exa = { apiKey: input.exaApiKey };
+      }
+
+      if (Object.keys(updates).length > 0) {
+        ctx.configManager.update(updates);
+      }
+
+      return {
+        success: true,
+        message: 'API keys updated successfully',
+      };
+    }),
+
+  /**
    * Reset settings to defaults
-   * SECURITY: Requires ADMIN privileges
+   * SECURITY: Requires ADMIN access - affects global configuration
    */
   resetSettings: adminProcedure
-    .mutation(async ({ ctx }) => {
+    .mutation(async () => {
       // This would reset to default config
       // For now, just return success
       return {

@@ -39,5 +39,8 @@ export * from './repositories/search-history-repository.js';
 export * from './repositories/stats-repository.js';
 export * from './repositories/credentials-repository.js';
 
+// Session repository (for automation/hunt persistence)
+export * from './repositories/session-repository.js';
+
 // Migrations
 export * from './migrations/index.js';
