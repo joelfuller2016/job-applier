@@ -20,13 +20,25 @@ const DEFAULT_GENERAL_SETTINGS = {
 };
 
 const generalSettingsSchema = z.object({
-  defaultKeywords: z.string().optional(),
-  defaultLocation: z.string().optional(),
-  autoApplyEnabled: z.boolean(),
-  matchThreshold: z.number().min(0).max(100),
-  browserHeadless: z.boolean(),
-  maxApplicationsPerDay: z.number().min(1).max(100),
-  applicationDelay: z.number().min(1).max(60),
+  defaultKeywords: z.string().default(DEFAULT_GENERAL_SETTINGS.defaultKeywords),
+  defaultLocation: z.string().default(DEFAULT_GENERAL_SETTINGS.defaultLocation),
+  autoApplyEnabled: z.boolean().default(DEFAULT_GENERAL_SETTINGS.autoApplyEnabled),
+  matchThreshold: z
+    .number()
+    .min(0)
+    .max(100)
+    .default(DEFAULT_GENERAL_SETTINGS.matchThreshold),
+  browserHeadless: z.boolean().default(DEFAULT_GENERAL_SETTINGS.browserHeadless),
+  maxApplicationsPerDay: z
+    .number()
+    .min(1)
+    .max(100)
+    .default(DEFAULT_GENERAL_SETTINGS.maxApplicationsPerDay),
+  applicationDelay: z
+    .number()
+    .min(1)
+    .max(60)
+    .default(DEFAULT_GENERAL_SETTINGS.applicationDelay),
 });
 
 function getGeneralSettingsKey(userId: string) {

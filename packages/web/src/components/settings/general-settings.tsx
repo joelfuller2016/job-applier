@@ -28,8 +28,8 @@ import { useToast } from '@/hooks/use-toast';
 import { trpc } from '@/lib/trpc/react';
 
 const generalSettingsSchema = z.object({
-  defaultKeywords: z.string().optional(),
-  defaultLocation: z.string().optional(),
+  defaultKeywords: z.string().default(''),
+  defaultLocation: z.string().default(''),
   autoApplyEnabled: z.boolean().default(false),
   matchThreshold: z.number().min(0).max(100).default(70),
   browserHeadless: z.boolean().default(true),
@@ -63,7 +63,17 @@ export function GeneralSettings() {
     if (generalSettingsQuery.data) {
       form.reset(generalSettingsQuery.data);
     }
-  }, [form, generalSettingsQuery.data]);
+  }, [generalSettingsQuery.data]);
+
+  React.useEffect(() => {
+    if (generalSettingsQuery.isError) {
+      toast({
+        title: 'Error loading settings',
+        description: 'Unable to load your saved general settings. Default values are shown instead.',
+        variant: 'destructive',
+      });
+    }
+  }, [generalSettingsQuery.isError, toast]);
 
   const onSubmit = async (data: GeneralSettingsValues) => {
     try {
