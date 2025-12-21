@@ -14,6 +14,7 @@ Recommended order:
    - Status: merged (Codex)
 4) PR #75 - Persist user general settings via tRPC and settings repository
    - Backend storage needed by later settings UIs.
+   - Status: merged (Codex)
 5) PR #76 - Connect General Settings UI to config via tRPC and add default preferences
    - Builds on #75.
 6) PR #83 - Add localStorage persistence for general settings
