@@ -79,6 +79,8 @@ function normalizeLegacyEnv(rawEnv: NodeJS.ProcessEnv): NormalizedEnvResult {
   setIfMissing('BROWSER_TIMEOUT', rawEnv.BROWSER_TIMEOUT_MS);
   warn('BROWSER_TIMEOUT_MS', 'BROWSER_TIMEOUT');
 
+  // Intentionally OR: legacy vars can fill whichever delay value is missing,
+  // and setIfMissing() preserves any user-provided value for partial migration.
   if (
     env.MIN_DELAY_BETWEEN_ACTIONS === undefined ||
     env.MAX_DELAY_BETWEEN_ACTIONS === undefined
