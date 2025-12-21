@@ -159,9 +159,9 @@ export const settingsRouter = router({
 
   /**
    * Get data directory paths
-   * Public: Non-sensitive path information
+   * SECURITY: Requires ADMIN privileges (sensitive paths)
    */
-  getDataPaths: publicProcedure
+  getDataPaths: adminProcedure
     .query(async ({ ctx }) => {
       return {
         dataDir: ctx.configManager.getDataDir(),

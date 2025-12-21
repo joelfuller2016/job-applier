@@ -7,7 +7,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import type { Context } from '../lib/trpc/server';
-import { ANONYMOUS_USER_ID } from '../lib/constants';
+import { ANONYMOUS_USER_ID, LEGACY_DEFAULT_USER_ID } from '../lib/constants';
 
 /**
  * Rate Limiter Implementation
@@ -140,7 +140,7 @@ export const publicProcedure = t.procedure;
  * Middleware for authentication
  */
 export const authMiddleware = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID) {
+  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID || ctx.userId === LEGACY_DEFAULT_USER_ID) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'Authentication required. Please sign in to perform this action.',
@@ -159,7 +159,11 @@ export const authMiddleware = t.middleware(async ({ ctx, next }) => {
  * Get rate limit key from context
  */
 function getRateLimitKey(ctx: Context): string {
-  if (ctx.userId && ctx.userId !== ANONYMOUS_USER_ID) {
+  if (
+    ctx.userId &&
+    ctx.userId !== ANONYMOUS_USER_ID &&
+    ctx.userId !== LEGACY_DEFAULT_USER_ID
+  ) {
     return `user:${ctx.userId}`;
   }
   return `anon:${ctx.userId || 'unknown'}`;
@@ -214,25 +218,28 @@ export const aiRateLimitedProcedure = t.procedure
 
 /**
  * Admin user IDs - configurable via environment variable
- * Format: comma-separated list of user IDs or 'default' for single-user mode
+ * Format: comma-separated list of user IDs
  * Example: ADMIN_USER_IDS=user123,user456
- * In single-user mode (not set), 'default' user has admin access
+ * If not set, any authenticated user is treated as admin (single-user mode)
  */
-const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || 'default').split(',').map(id => id.trim());
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
 
 /**
  * Admin middleware - checks for admin role
  */
 export const adminMiddleware = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID) {
+  if (!ctx.userId || ctx.userId === ANONYMOUS_USER_ID || ctx.userId === LEGACY_DEFAULT_USER_ID) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'Authentication required.',
     });
   }
 
-  // Check if user is in admin list
-  const isAdmin = ADMIN_USER_IDS.includes(ctx.userId);
+  // If no admin IDs are configured, treat all authenticated users as admins (single-user mode)
+  const isAdmin = ADMIN_USER_IDS.length === 0 ? true : ADMIN_USER_IDS.includes(ctx.userId);
 
   if (!isAdmin) {
     throw new TRPCError({
