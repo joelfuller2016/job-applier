@@ -14,13 +14,26 @@ import { JobHunterOrchestrator } from '@job-applier/ai-job-hunter';
 import { authOptions } from '@/lib/auth';
 
 /**
+ * Singleton instance for JobHunterOrchestrator
+ * Reused across requests for efficiency and state persistence
+ */
+let orchestratorInstance: JobHunterOrchestrator | null = null;
+
+function getOrchestrator(): JobHunterOrchestrator {
+  if (!orchestratorInstance) {
+    orchestratorInstance = new JobHunterOrchestrator();
+  }
+  return orchestratorInstance;
+}
+
+/**
  * Create context for tRPC
  * This runs for every request and provides access to dependencies
  */
 export async function createContext() {
   const configManager = getConfigManager();
   const config = configManager.getConfig();
-  const orchestrator = new JobHunterOrchestrator();
+  const orchestrator = getOrchestrator();
 
   // Get the session from NextAuth
   const session = await getServerSession(authOptions);
